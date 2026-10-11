@@ -1,0 +1,180 @@
+{
+  "categorias": [
+    {
+      "id": "web",
+      "nombre": "Web",
+      "descripcion": "Experiencias digitales enfocadas en presencia, conversión y venta online.",
+      "icono": "web"
+    },
+    {
+      "id": "sistemas",
+      "nombre": "Sistemas",
+      "descripcion": "Herramientas a medida para centralizar procesos, información y operación.",
+      "icono": "sistemas"
+    },
+    {
+      "id": "apps",
+      "nombre": "Apps",
+      "descripcion": "Productos digitales pensados para validar, operar y escalar nuevas ideas.",
+      "icono": "apps"
+    },
+    {
+      "id": "automatizacion",
+      "nombre": "Automatización",
+      "descripcion": "Integraciones y flujos que conectan herramientas y reducen tareas manuales.",
+      "icono": "automatizacion"
+    },
+    {
+      "id": "soporte",
+      "nombre": "Soporte",
+      "descripcion": "Acompañamiento continuo para mantener, mejorar y evolucionar productos digitales.",
+      "icono": "soporte"
+    }
+  ],
+  "servicios": [
+    {
+      "id": 1,
+      "nombre": "Landing page",
+      "categoriaId": "web",
+      "descripcion": "Página enfocada en presentar una oferta concreta y convertir visitas en oportunidades.",
+      "precio": 1500,
+      "modalidad": "proyecto",
+      "unidad": null,
+      "cantidadEditable": false,
+      "cantidadMinima": 1,
+      "cantidadMaxima": 1
+    },
+    {
+      "id": 2,
+      "nombre": "Sitio web corporativo",
+      "categoriaId": "web",
+      "descripcion": "Sitio completo para presentar marca, servicios, contenido y puntos de contacto con una estructura escalable.",
+      "precio": 3500,
+      "modalidad": "proyecto",
+      "unidad": null,
+      "cantidadEditable": false,
+      "cantidadMinima": 1,
+      "cantidadMaxima": 1
+    },
+    {
+      "id": 3,
+      "nombre": "Ecommerce",
+      "categoriaId": "web",
+      "descripcion": "Tienda online con catálogo, carrito y experiencia de compra adaptada al modelo comercial.",
+      "precio": 5900,
+      "modalidad": "proyecto",
+      "unidad": null,
+      "cantidadEditable": false,
+      "cantidadMinima": 1,
+      "cantidadMaxima": 1
+    },
+    {
+      "id": 4,
+      "nombre": "Portal de clientes",
+      "categoriaId": "sistemas",
+      "descripcion": "Espacio privado para centralizar información, archivos, estados, solicitudes y comunicación con clientes.",
+      "precio": 7500,
+      "modalidad": "proyecto",
+      "unidad": null,
+      "cantidadEditable": false,
+      "cantidadMinima": 1,
+      "cantidadMaxima": 1
+    },
+    {
+      "id": 5,
+      "nombre": "Sistema de gestión a medida",
+      "categoriaId": "sistemas",
+      "descripcion": "Software personalizado para organizar procesos, datos y operaciones específicas del negocio.",
+      "precio": 11900,
+      "modalidad": "proyecto",
+      "unidad": null,
+      "cantidadEditable": false,
+      "cantidadMinima": 1,
+      "cantidadMaxima": 1
+    },
+    {
+      "id": 6,
+      "nombre": "CRM personalizado",
+      "categoriaId": "sistemas",
+      "descripcion": "Sistema comercial adaptado al flujo real de seguimiento, oportunidades, clientes y tareas del equipo.",
+      "precio": 9500,
+      "modalidad": "proyecto",
+      "unidad": null,
+      "cantidadEditable": false,
+      "cantidadMinima": 1,
+      "cantidadMaxima": 1
+    },
+    {
+      "id": 7,
+      "nombre": "Sistema de reservas y turnos",
+      "categoriaId": "sistemas",
+      "descripcion": "Gestión de disponibilidad, reservas, confirmaciones y seguimiento desde una interfaz centralizada.",
+      "precio": 6500,
+      "modalidad": "proyecto",
+      "unidad": null,
+      "cantidadEditable": false,
+      "cantidadMinima": 1,
+      "cantidadMaxima": 1
+    },
+    {
+      "id": 8,
+      "nombre": "Sistema de inventario y pedidos",
+      "categoriaId": "sistemas",
+      "descripcion": "Control de productos, movimientos, stock y pedidos con información operativa en tiempo real.",
+      "precio": 8900,
+      "modalidad": "proyecto",
+      "unidad": null,
+      "cantidadEditable": false,
+      "cantidadMinima": 1,
+      "cantidadMaxima": 1
+    },
+    {
+      "id": 9,
+      "nombre": "Aplicación web",
+      "categoriaId": "apps",
+      "descripcion": "Producto web interactivo con lógica propia, usuarios, flujos y funcionalidades adaptadas al proyecto.",
+      "precio": 12500,
+      "modalidad": "proyecto",
+      "unidad": null,
+      "cantidadEditable": false,
+      "cantidadMinima": 1,
+      "cantidadMaxima": 1
+    },
+    {
+      "id": 10,
+      "nombre": "Aplicación móvil MVP",
+      "categoriaId": "apps",
+      "descripcion": "Primera versión funcional de una app móvil para validar propuesta, experiencia y funciones esenciales.",
+      "precio": 15000,
+      "modalidad": "proyecto",
+      "unidad": null,
+      "cantidadEditable": false,
+      "cantidadMinima": 1,
+      "cantidadMaxima": 1
+    },
+    {
+      "id": 11,
+      "nombre": "Automatización e integraciones",
+      "categoriaId": "automatizacion",
+      "descripcion": "Conexión entre herramientas y automatización de tareas repetitivas para reducir fricción operativa.",
+      "precio": 2500,
+      "modalidad": "proyecto",
+      "unidad": null,
+      "cantidadEditable": false,
+      "cantidadMinima": 1,
+      "cantidadMaxima": 1
+    },
+    {
+      "id": 12,
+      "nombre": "Mantenimiento y evolución",
+      "categoriaId": "soporte",
+      "descripcion": "Acompañamiento mensual para mantenimiento, mejoras, ajustes técnicos y evolución continua del producto.",
+      "precio": 450,
+      "modalidad": "mensual",
+      "unidad": "mes",
+      "cantidadEditable": true,
+      "cantidadMinima": 1,
+      "cantidadMaxima": 12
+    }
+  ]
+}
