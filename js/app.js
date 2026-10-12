@@ -3,13 +3,21 @@ const RUTA_CATALOGO = "./data/servicios.json";
 const estado = {
   categorias: [],
   servicios: [],
+  carouselPosicion: 0,
+  carouselInicio: 0,
+  carouselPointerX: 0,
+  carouselArrastrando: false,
+  carouselSeMovio: false,
+  carouselBloquearClickHasta: 0,
   cargando: false
 };
 
 const elementos = {
   loadingState: document.querySelector("#loading-state"),
   errorState: document.querySelector("#error-state"),
+  categorySection: document.querySelector("#category-section"),
   categoryGrid: document.querySelector("#category-grid"),
+  categoryRail: document.querySelector("#category-rail"),
   btnRetry: document.querySelector("#btn-retry")
 };
 
@@ -57,21 +65,176 @@ function obtenerIconoCategoria(icono) {
 
 function renderizarCategorias() {
   elementos.categoryGrid.innerHTML = estado.categorias
-    .map(({ nombre, descripcion, icono }) => `
-      <article class="category-card" role="listitem">
-        <span class="category-icon">${obtenerIconoCategoria(icono)}</span>
-        <h2>${escaparHTML(nombre)}</h2>
-        <p>${escaparHTML(descripcion)}</p>
+    .map(({ id, nombre, descripcion, icono }, indice) => `
+      <article
+        class="category-stage"
+        data-category-id="${id}"
+        data-category-index="${indice}"
+        role="listitem"
+        aria-label="${escaparHTML(nombre)}"
+      >
+        <div class="category-card">
+          <span class="category-icon">${obtenerIconoCategoria(icono)}</span>
+          <div class="category-copy">
+            <h2>${escaparHTML(nombre)}</h2>
+            <p>${escaparHTML(descripcion)}</p>
+          </div>
+        </div>
       </article>
     `)
     .join("");
+
+  estado.carouselPosicion = 0;
+  elementos.categoryRail.max = String(Math.max(0, estado.categorias.length - 1));
+  elementos.categoryRail.value = "0";
+  actualizarCarousel(false);
+}
+
+function normalizarPosicion(posicion) {
+  const total = estado.categorias.length;
+  return total ? ((posicion % total) + total) % total : 0;
+}
+
+function obtenerDiferenciaCircular(indice, posicion, total) {
+  let diferencia = indice - normalizarPosicion(posicion);
+  const mitad = total / 2;
+
+  if (diferencia > mitad) {
+    diferencia -= total;
+  }
+
+  if (diferencia < -mitad) {
+    diferencia += total;
+  }
+
+  return diferencia;
+}
+
+function actualizarCarousel(animar = true) {
+  const tarjetas = [...elementos.categoryGrid.querySelectorAll(".category-stage")];
+  const total = tarjetas.length;
+
+  if (!total) {
+    return;
+  }
+
+  elementos.categoryGrid.classList.toggle("is-dragging", !animar);
+  const ancho = elementos.categoryGrid.clientWidth || 900;
+  const radioX = Math.min(455, Math.max(260, ancho * 0.39));
+
+  tarjetas.forEach((tarjeta, indice) => {
+    const diferencia = obtenerDiferenciaCircular(indice, estado.carouselPosicion, total);
+    const angulo = diferencia * ((Math.PI * 2) / total);
+    const coseno = Math.cos(angulo);
+    const seno = Math.sin(angulo);
+    const profundidad = (coseno - 1) * 185;
+    const escala = 0.72 + ((coseno + 1) / 2) * 0.28;
+    const opacidad = 0.78 + ((coseno + 1) / 2) * 0.22;
+    const desplazamientoX = seno * radioX;
+    const rotacion = -seno * 15;
+    const activa = Math.abs(diferencia) < 0.42;
+
+    tarjeta.style.setProperty("--carousel-x", `${desplazamientoX}px`);
+    tarjeta.style.setProperty("--carousel-z", `${profundidad}px`);
+    tarjeta.style.setProperty("--carousel-scale", escala.toFixed(3));
+    tarjeta.style.setProperty("--carousel-rotate", `${rotacion.toFixed(2)}deg`);
+    tarjeta.style.setProperty("--carousel-opacity", opacidad.toFixed(3));
+    tarjeta.style.setProperty("--carousel-zindex", String(Math.round((coseno + 1) * 50)));
+    tarjeta.classList.toggle("is-active", activa);
+    tarjeta.setAttribute("aria-current", activa ? "true" : "false");
+    tarjeta.tabIndex = activa ? 0 : -1;
+  });
+
+  if (!estado.carouselArrastrando) {
+    elementos.categoryRail.value = String(normalizarPosicion(Math.round(estado.carouselPosicion)));
+  }
+}
+
+function moverCarouselHacia(indice) {
+  const total = estado.categorias.length;
+
+  if (!total) {
+    return;
+  }
+
+  const posicionActual = normalizarPosicion(estado.carouselPosicion);
+  let diferencia = indice - posicionActual;
+  const mitad = total / 2;
+
+  if (diferencia > mitad) {
+    diferencia -= total;
+  }
+
+  if (diferencia < -mitad) {
+    diferencia += total;
+  }
+
+  estado.carouselPosicion += diferencia;
+  actualizarCarousel(true);
+}
+
+function iniciarArrastre(evento) {
+  if (evento.button !== undefined && evento.button !== 0) {
+    return;
+  }
+
+  estado.carouselSeMovio = false;
+  estado.carouselPointerX = evento.clientX;
+  estado.carouselInicio = estado.carouselPosicion;
+  estado.carouselArrastrando = true;
+  elementos.categoryGrid.setPointerCapture?.(evento.pointerId);
+}
+
+function moverArrastre(evento) {
+  if (!estado.carouselArrastrando) {
+    return;
+  }
+
+  const desplazamiento = evento.clientX - estado.carouselPointerX;
+
+  if (Math.abs(desplazamiento) > 6) {
+    estado.carouselSeMovio = true;
+  }
+
+  estado.carouselPosicion = estado.carouselInicio - desplazamiento / 225;
+  elementos.categoryRail.value = String(normalizarPosicion(estado.carouselPosicion));
+  actualizarCarousel(false);
+}
+
+function terminarArrastre(evento) {
+  if (!estado.carouselArrastrando) {
+    return;
+  }
+
+  const desplazamiento = Math.abs(evento.clientX - estado.carouselPointerX);
+  estado.carouselArrastrando = false;
+  estado.carouselPosicion = Math.round(estado.carouselPosicion);
+
+  if (desplazamiento > 7 || estado.carouselSeMovio) {
+    estado.carouselBloquearClickHasta = Date.now() + 250;
+  }
+
+  elementos.categoryGrid.releasePointerCapture?.(evento.pointerId);
+  actualizarCarousel(true);
+}
+
+function sincronizarDesdeRail() {
+  estado.carouselArrastrando = true;
+  estado.carouselPosicion = Number(elementos.categoryRail.value);
+  actualizarCarousel(false);
+}
+
+function terminarRail() {
+  estado.carouselArrastrando = false;
+  estado.carouselPosicion = Math.round(Number(elementos.categoryRail.value));
+  actualizarCarousel(true);
 }
 
 async function cargarCatalogo() {
   estado.cargando = true;
   elementos.loadingState.hidden = false;
   elementos.errorState.hidden = true;
-  elementos.categoryGrid.hidden = true;
+  elementos.categorySection.hidden = true;
 
   try {
     const respuesta = await fetch(RUTA_CATALOGO);
@@ -86,7 +249,7 @@ async function cargarCatalogo() {
     estado.categorias = datos.categorias;
     estado.servicios = datos.servicios;
     renderizarCategorias();
-    elementos.categoryGrid.hidden = false;
+    elementos.categorySection.hidden = false;
   } catch (error) {
     elementos.errorState.hidden = false;
   } finally {
@@ -95,6 +258,40 @@ async function cargarCatalogo() {
   }
 }
 
+elementos.categoryGrid.addEventListener("click", (evento) => {
+  const tarjeta = evento.target.closest(".category-stage");
+
+  if (!tarjeta || Date.now() < estado.carouselBloquearClickHasta) {
+    return;
+  }
+
+  moverCarouselHacia(Number(tarjeta.dataset.categoryIndex));
+});
+
+elementos.categoryGrid.addEventListener("keydown", (evento) => {
+  if (evento.key !== "Enter" && evento.key !== " ") {
+    return;
+  }
+
+  const tarjeta = evento.target.closest(".category-stage");
+
+  if (!tarjeta) {
+    return;
+  }
+
+  evento.preventDefault();
+  moverCarouselHacia(Number(tarjeta.dataset.categoryIndex));
+});
+
+elementos.categoryGrid.addEventListener("pointerdown", iniciarArrastre);
+elementos.categoryGrid.addEventListener("pointermove", moverArrastre);
+elementos.categoryGrid.addEventListener("pointerup", terminarArrastre);
+elementos.categoryGrid.addEventListener("pointercancel", terminarArrastre);
+
+elementos.categoryRail.addEventListener("input", sincronizarDesdeRail);
+elementos.categoryRail.addEventListener("change", terminarRail);
+elementos.categoryRail.addEventListener("pointerup", terminarRail);
 elementos.btnRetry.addEventListener("click", cargarCatalogo);
+window.addEventListener("resize", () => actualizarCarousel(false));
 
 cargarCatalogo();
