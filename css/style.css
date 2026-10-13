@@ -56,6 +56,8 @@ input:focus-visible,
   margin: 18px auto 0;
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 20px;
   padding: 12px 16px;
   border-radius: 24px;
   background: rgba(215, 220, 221, 0.78);
@@ -89,6 +91,32 @@ input:focus-visible,
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -0.03em;
+}
+
+.quote-header-button {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 8px 6px 16px;
+  border-radius: 999px;
+  color: var(--ink-900);
+  background: var(--surface);
+  box-shadow: 5px 6px 12px rgba(17, 33, 45, 0.12);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.quote-count {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--surface-soft);
+  font-size: 11px;
+  font-weight: 700;
 }
 
 .app-shell {
@@ -431,15 +459,17 @@ input:focus-visible,
 }
 
 .service-card {
-  min-height: 150px;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+  min-height: 164px;
+  display: grid;
   gap: 24px;
   padding: 24px;
   border-radius: 22px;
   background: var(--surface);
   box-shadow: 0 12px 26px rgba(17, 33, 45, 0.1);
+}
+
+.service-card-copy {
+  align-self: start;
 }
 
 .service-card h3 {
@@ -455,11 +485,16 @@ input:focus-visible,
   line-height: 1.55;
 }
 
+.service-card-bottom {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 20px;
+}
+
 .service-price {
-  min-width: 145px;
   display: grid;
   gap: 5px;
-  text-align: right;
 }
 
 .service-price span {
@@ -472,6 +507,237 @@ input:focus-visible,
 
 .service-price strong {
   font-size: 15px;
+}
+
+.service-add {
+  min-width: 112px;
+  min-height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  color: var(--ink-900);
+  background: var(--surface-soft);
+  box-shadow: 4px 5px 10px rgba(17, 33, 45, 0.11);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.service-add.is-added {
+  color: var(--ink-500);
+  box-shadow: inset 3px 3px 8px rgba(17, 33, 45, 0.1);
+  cursor: default;
+}
+
+.quote-fab {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 60;
+  min-width: 290px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 12px 14px 12px 18px;
+  border-radius: 22px;
+  color: var(--ink-950);
+  background: var(--surface-soft);
+  box-shadow: 0 18px 38px rgba(17, 33, 45, 0.18);
+  cursor: pointer;
+  text-align: left;
+}
+
+.quote-fab > span:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.quote-fab small {
+  color: var(--ink-500);
+  font-size: 10px;
+}
+
+.quote-fab strong {
+  font-size: 17px;
+}
+
+.quote-fab-action {
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.quote-drawer {
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  bottom: 14px;
+  z-index: 90;
+  width: min(420px, calc(100% - 28px));
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding: 26px;
+  border-radius: 30px;
+  background: var(--surface-soft);
+  box-shadow: 0 30px 60px rgba(17, 33, 45, 0.22);
+  transform: translateX(calc(100% + 30px));
+  transition: transform 240ms var(--ease);
+}
+
+.quote-drawer.is-open {
+  transform: translateX(0);
+}
+
+.quote-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 18px;
+}
+
+.quote-drawer-header h2 {
+  font-size: 23px;
+  letter-spacing: -0.04em;
+}
+
+.quote-drawer-header p {
+  margin-top: 6px;
+  color: var(--ink-500);
+  font-size: 10px;
+}
+
+.quote-drawer-body {
+  min-height: 0;
+  overflow: hidden;
+}
+
+.quote-empty {
+  height: 100%;
+  display: grid;
+  place-content: center;
+  gap: 7px;
+  text-align: center;
+}
+
+.quote-empty strong {
+  font-size: 15px;
+}
+
+.quote-empty p {
+  max-width: 240px;
+  color: var(--ink-500);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.quote-items {
+  height: 100%;
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  overflow-y: auto;
+  padding: 4px 8px 12px 0;
+  scrollbar-color: var(--ink-300) transparent;
+  scrollbar-width: thin;
+}
+
+.quote-item {
+  padding: 16px;
+  border-radius: 18px;
+  background: var(--surface);
+  box-shadow: 0 8px 18px rgba(17, 33, 45, 0.08);
+}
+
+.quote-item-top,
+.quote-item-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.quote-item h3 {
+  font-size: 12px;
+}
+
+.quote-item p,
+.fixed-quantity {
+  margin-top: 4px;
+  color: var(--ink-500);
+  font-size: 9px;
+}
+
+.remove-item {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--ink-500);
+  background: var(--surface-soft);
+  cursor: pointer;
+  font-size: 17px;
+}
+
+.quote-item-bottom {
+  margin-top: 14px;
+}
+
+.quote-item-bottom strong {
+  font-size: 12px;
+}
+
+.quantity-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--ink-500);
+  font-size: 10px;
+}
+
+.quantity-stepper button {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  color: var(--ink-900);
+  background: var(--surface-soft);
+  cursor: pointer;
+}
+
+.quote-drawer-footer {
+  padding-top: 18px;
+}
+
+.quote-total {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 18px;
+  padding-bottom: 16px;
+}
+
+.quote-total span {
+  color: var(--ink-500);
+  font-size: 10px;
+}
+
+.quote-total strong {
+  font-size: 24px;
+  letter-spacing: -0.04em;
+}
+
+.clear-quote-button {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 999px;
+  color: var(--ink-500);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 @media (max-width: 900px) {
@@ -544,13 +810,30 @@ input:focus-visible,
 
   .service-card {
     min-height: 0;
-    align-items: flex-start;
+  }
+
+  .service-card-bottom {
+    align-items: stretch;
     flex-direction: column;
   }
 
-  .service-price {
+  .service-add {
+    width: 100%;
+  }
+
+  .quote-fab {
+    right: 14px;
+    left: 14px;
+    bottom: 14px;
     min-width: 0;
-    text-align: left;
+  }
+
+  .quote-drawer {
+    top: 10px;
+    right: 10px;
+    bottom: 10px;
+    width: calc(100% - 20px);
+    padding: 22px 18px;
   }
 }
 

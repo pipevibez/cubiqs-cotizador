@@ -20,6 +20,11 @@
       </span>
       <span class="brand-name">Cubiqs</span>
     </a>
+
+    <button id="btn-header-cotizacion" class="quote-header-button" type="button" aria-controls="quote-drawer" aria-expanded="false">
+      <span>Tu cotización</span>
+      <span id="header-quote-count" class="quote-count">0</span>
+    </button>
   </header>
 
   <main class="app-shell">
@@ -60,6 +65,14 @@
     </section>
   </main>
 
+  <button id="quote-fab" class="quote-fab" type="button" aria-controls="quote-drawer" aria-expanded="false" hidden>
+    <span>
+      <small id="fab-count">0 servicios</small>
+      <strong id="fab-total">USD 0</strong>
+    </span>
+    <span class="quote-fab-action">Ver cotización</span>
+  </button>
+
   <div id="modal-overlay" class="modal-overlay" hidden></div>
 
   <section
@@ -81,5 +94,39 @@
 
     <div id="service-modal-list" class="service-list"></div>
   </section>
+
+  <aside
+    id="quote-drawer"
+    class="quote-drawer"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="quote-drawer-title"
+    aria-hidden="true"
+    hidden
+  >
+    <header class="quote-drawer-header">
+      <div>
+        <h2 id="quote-drawer-title">Tu cotización</h2>
+        <p id="drawer-count">0 servicios seleccionados</p>
+      </div>
+      <button id="btn-close-drawer" class="modal-close" type="button" aria-label="Cerrar cotización">×</button>
+    </header>
+
+    <div class="quote-drawer-body">
+      <div id="quote-empty" class="quote-empty">
+        <strong>Tu cotización está vacía</strong>
+        <p>Agregá servicios desde cualquiera de los rubros.</p>
+      </div>
+      <div id="quote-items" class="quote-items" hidden></div>
+    </div>
+
+    <footer id="quote-footer" class="quote-drawer-footer" hidden>
+      <div class="quote-total">
+        <span>Estimación total</span>
+        <strong id="drawer-total">USD 0</strong>
+      </div>
+      <button id="btn-clear-quote" class="clear-quote-button" type="button">Vaciar cotización</button>
+    </footer>
+  </aside>
 </body>
 </html>

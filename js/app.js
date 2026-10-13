@@ -3,6 +3,9 @@ const RUTA_CATALOGO = "./data/servicios.json";
 const estado = {
   categorias: [],
   servicios: [],
+  cotizacion: {
+    items: []
+  },
   categoriaActiva: null,
   carouselPosicion: 0,
   carouselInicio: 0,
@@ -20,12 +23,25 @@ const elementos = {
   categoryGrid: document.querySelector("#category-grid"),
   categoryRail: document.querySelector("#category-rail"),
   btnRetry: document.querySelector("#btn-retry"),
+  btnHeaderQuote: document.querySelector("#btn-header-cotizacion"),
+  headerQuoteCount: document.querySelector("#header-quote-count"),
+  quoteFab: document.querySelector("#quote-fab"),
+  fabCount: document.querySelector("#fab-count"),
+  fabTotal: document.querySelector("#fab-total"),
   modalOverlay: document.querySelector("#modal-overlay"),
   serviceModal: document.querySelector("#service-modal"),
   serviceModalTitle: document.querySelector("#service-modal-title"),
   serviceModalDescription: document.querySelector("#service-modal-description"),
   serviceModalList: document.querySelector("#service-modal-list"),
-  btnCloseServiceModal: document.querySelector("#btn-close-service-modal")
+  btnCloseServiceModal: document.querySelector("#btn-close-service-modal"),
+  quoteDrawer: document.querySelector("#quote-drawer"),
+  drawerCount: document.querySelector("#drawer-count"),
+  quoteEmpty: document.querySelector("#quote-empty"),
+  quoteItems: document.querySelector("#quote-items"),
+  quoteFooter: document.querySelector("#quote-footer"),
+  drawerTotal: document.querySelector("#drawer-total"),
+  btnCloseDrawer: document.querySelector("#btn-close-drawer"),
+  btnClearQuote: document.querySelector("#btn-clear-quote")
 };
 
 function escaparHTML(valor = "") {
@@ -43,6 +59,14 @@ function formatearMoneda(valor) {
     currency: "USD",
     maximumFractionDigits: 0
   }).format(valor);
+}
+
+function pluralUnidad(unidad, cantidad) {
+  if (!unidad || cantidad === 1) {
+    return unidad || "unidad";
+  }
+
+  return unidad === "mes" ? "meses" : `${unidad}s`;
 }
 
 function validarCatalogo(datos) {
@@ -207,17 +231,7 @@ function abrirCategoria(categoriaId) {
   elementos.serviceModalTitle.textContent = categoria.nombre;
   elementos.serviceModalDescription.textContent = categoria.descripcion;
   renderizarServiciosCategoria();
-
-  elementos.modalOverlay.hidden = false;
-  elementos.serviceModal.hidden = false;
-
-  requestAnimationFrame(() => {
-    elementos.modalOverlay.classList.add("is-open");
-    elementos.serviceModal.classList.add("is-open");
-    elementos.serviceModal.setAttribute("aria-hidden", "false");
-    document.body.classList.add("modal-open");
-    elementos.btnCloseServiceModal.focus();
-  });
+  abrirCapa(elementos.serviceModal, elementos.btnCloseServiceModal);
 }
 
 function renderizarServiciosCategoria() {
@@ -225,21 +239,163 @@ function renderizarServiciosCategoria() {
     ({ categoriaId }) => categoriaId === estado.categoriaActiva
   );
 
-  elementos.serviceModalList.innerHTML = servicios
-    .map(({ nombre, descripcion, precio, modalidad, unidad }) => {
-      const precioTexto = modalidad === "mensual" && unidad
-        ? `${formatearMoneda(precio)} / ${unidad}`
-        : `Desde ${formatearMoneda(precio)}`;
+  elementos.serviceModalList.innerHTML = servicios.map(renderizarServicio).join("");
+}
+
+function renderizarServicio(servicio) {
+  const { id, nombre, descripcion, precio, modalidad, unidad } = servicio;
+  const seleccionado = servicioSeleccionado(id);
+  const precioTexto = modalidad === "mensual" && unidad
+    ? `${formatearMoneda(precio)} / ${unidad}`
+    : `Desde ${formatearMoneda(precio)}`;
+
+  return `
+    <article class="service-card" data-service-id="${id}">
+      <div class="service-card-copy">
+        <h3>${escaparHTML(nombre)}</h3>
+        <p>${escaparHTML(descripcion)}</p>
+      </div>
+      <div class="service-card-bottom">
+        <div class="service-price">
+          <span>${modalidad === "mensual" ? "Valor" : "Estimación base"}</span>
+          <strong>${precioTexto}</strong>
+        </div>
+        <button
+          class="service-add ${seleccionado ? "is-added" : ""}"
+          type="button"
+          data-action="add-service"
+          data-service-id="${id}"
+          ${seleccionado ? "disabled" : ""}
+        >
+          ${seleccionado ? "Agregado" : "Agregar"}
+        </button>
+      </div>
+    </article>
+  `;
+}
+
+function obtenerServicio(servicioId) {
+  return estado.servicios.find(({ id }) => id === Number(servicioId));
+}
+
+function obtenerItemCotizacion(servicioId) {
+  return estado.cotizacion.items.find(({ servicioId: id }) => id === Number(servicioId));
+}
+
+function servicioSeleccionado(servicioId) {
+  return estado.cotizacion.items.some(({ servicioId: id }) => id === Number(servicioId));
+}
+
+function calcularTotal() {
+  return estado.cotizacion.items.reduce((total, { servicioId, cantidad }) => {
+    const servicio = obtenerServicio(servicioId);
+    return servicio ? total + servicio.precio * cantidad : total;
+  }, 0);
+}
+
+function agregarServicio(servicioId) {
+  const servicio = obtenerServicio(servicioId);
+
+  if (!servicio || servicioSeleccionado(servicioId)) {
+    return;
+  }
+
+  estado.cotizacion.items.push({
+    servicioId: servicio.id,
+    cantidad: servicio.cantidadMinima || 1
+  });
+
+  actualizarCotizacion();
+  renderizarServiciosCategoria();
+}
+
+function eliminarServicio(servicioId) {
+  estado.cotizacion.items = estado.cotizacion.items.filter(
+    ({ servicioId: id }) => id !== Number(servicioId)
+  );
+
+  actualizarCotizacion();
+
+  if (estado.categoriaActiva) {
+    renderizarServiciosCategoria();
+  }
+}
+
+function modificarCantidad(servicioId, cambio) {
+  const servicio = obtenerServicio(servicioId);
+  const item = obtenerItemCotizacion(servicioId);
+
+  if (!servicio || !item || !servicio.cantidadEditable) {
+    return;
+  }
+
+  const minimo = servicio.cantidadMinima || 1;
+  const maximo = servicio.cantidadMaxima || 99;
+  const nuevaCantidad = item.cantidad + cambio;
+
+  if (nuevaCantidad < minimo || nuevaCantidad > maximo) {
+    return;
+  }
+
+  item.cantidad = nuevaCantidad;
+  actualizarCotizacion();
+}
+
+function vaciarCotizacion() {
+  estado.cotizacion.items = [];
+  actualizarCotizacion();
+
+  if (estado.categoriaActiva) {
+    renderizarServiciosCategoria();
+  }
+}
+
+function actualizarCotizacion() {
+  const cantidad = estado.cotizacion.items.length;
+  const total = calcularTotal();
+
+  elementos.headerQuoteCount.textContent = cantidad;
+  elementos.fabCount.textContent = `${cantidad} ${cantidad === 1 ? "servicio" : "servicios"}`;
+  elementos.fabTotal.textContent = formatearMoneda(total);
+  elementos.drawerCount.textContent = `${cantidad} ${cantidad === 1 ? "servicio seleccionado" : "servicios seleccionados"}`;
+  elementos.drawerTotal.textContent = formatearMoneda(total);
+  elementos.quoteFab.hidden = cantidad === 0;
+  elementos.quoteEmpty.hidden = cantidad > 0;
+  elementos.quoteItems.hidden = cantidad === 0;
+  elementos.quoteFooter.hidden = cantidad === 0;
+
+  renderizarItemsCotizacion();
+}
+
+function renderizarItemsCotizacion() {
+  elementos.quoteItems.innerHTML = estado.cotizacion.items
+    .map(({ servicioId, cantidad }) => {
+      const servicio = obtenerServicio(servicioId);
+
+      if (!servicio) {
+        return "";
+      }
+
+      const subtotal = servicio.precio * cantidad;
 
       return `
-        <article class="service-card">
-          <div>
-            <h3>${escaparHTML(nombre)}</h3>
-            <p>${escaparHTML(descripcion)}</p>
+        <article class="quote-item" data-service-id="${servicio.id}">
+          <div class="quote-item-top">
+            <div>
+              <h3>${escaparHTML(servicio.nombre)}</h3>
+              <p>${servicio.modalidad === "mensual" ? `${formatearMoneda(servicio.precio)} / ${servicio.unidad}` : "Proyecto"}</p>
+            </div>
+            <button class="remove-item" type="button" data-action="remove-service" data-service-id="${servicio.id}" aria-label="Eliminar ${escaparHTML(servicio.nombre)}">×</button>
           </div>
-          <div class="service-price">
-            <span>${modalidad === "mensual" ? "Valor" : "Estimación base"}</span>
-            <strong>${precioTexto}</strong>
+          <div class="quote-item-bottom">
+            ${servicio.cantidadEditable ? `
+              <div class="quantity-stepper" aria-label="Cantidad de ${escaparHTML(servicio.nombre)}">
+                <button type="button" data-action="decrease" data-service-id="${servicio.id}" aria-label="Reducir cantidad">−</button>
+                <span>${cantidad} ${pluralUnidad(servicio.unidad, cantidad)}</span>
+                <button type="button" data-action="increase" data-service-id="${servicio.id}" aria-label="Aumentar cantidad">+</button>
+              </div>
+            ` : `<span class="fixed-quantity">Cantidad fija</span>`}
+            <strong>${formatearMoneda(subtotal)}</strong>
           </div>
         </article>
       `;
@@ -247,17 +403,47 @@ function renderizarServiciosCategoria() {
     .join("");
 }
 
-function cerrarModalServicios() {
+function abrirCapa(elemento, foco) {
+  elementos.modalOverlay.hidden = false;
+  elemento.hidden = false;
+
+  requestAnimationFrame(() => {
+    elementos.modalOverlay.classList.add("is-open");
+    elemento.classList.add("is-open");
+    elemento.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+    foco?.focus();
+  });
+}
+
+function cerrarCapa(elemento) {
+  elemento.classList.remove("is-open");
+  elemento.setAttribute("aria-hidden", "true");
   elementos.modalOverlay.classList.remove("is-open");
-  elementos.serviceModal.classList.remove("is-open");
-  elementos.serviceModal.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
-  estado.categoriaActiva = null;
 
   window.setTimeout(() => {
+    elemento.hidden = true;
     elementos.modalOverlay.hidden = true;
-    elementos.serviceModal.hidden = true;
   }, 220);
+}
+
+function cerrarModalServicios() {
+  cerrarCapa(elementos.serviceModal);
+  estado.categoriaActiva = null;
+}
+
+function abrirDrawer() {
+  actualizarCotizacion();
+  abrirCapa(elementos.quoteDrawer, elementos.btnCloseDrawer);
+  elementos.btnHeaderQuote.setAttribute("aria-expanded", "true");
+  elementos.quoteFab.setAttribute("aria-expanded", "true");
+}
+
+function cerrarDrawer() {
+  cerrarCapa(elementos.quoteDrawer);
+  elementos.btnHeaderQuote.setAttribute("aria-expanded", "false");
+  elementos.quoteFab.setAttribute("aria-expanded", "false");
 }
 
 function iniciarArrastre(evento) {
@@ -341,11 +527,34 @@ async function cargarCatalogo() {
     estado.servicios = datos.servicios;
     renderizarCategorias();
     elementos.categorySection.hidden = false;
+    actualizarCotizacion();
   } catch (error) {
     elementos.errorState.hidden = false;
   } finally {
     estado.cargando = false;
     elementos.loadingState.hidden = true;
+  }
+}
+
+function manejarAccionCotizacion(evento) {
+  const boton = evento.target.closest("button[data-action]");
+
+  if (!boton) {
+    return;
+  }
+
+  const servicioId = Number(boton.dataset.serviceId);
+
+  if (boton.dataset.action === "remove-service") {
+    eliminarServicio(servicioId);
+  }
+
+  if (boton.dataset.action === "increase") {
+    modificarCantidad(servicioId, 1);
+  }
+
+  if (boton.dataset.action === "decrease") {
+    modificarCantidad(servicioId, -1);
   }
 }
 
@@ -393,19 +602,50 @@ elementos.categoryGrid.addEventListener("pointerdown", iniciarArrastre);
 elementos.categoryGrid.addEventListener("pointermove", moverArrastre);
 elementos.categoryGrid.addEventListener("pointerup", terminarArrastre);
 elementos.categoryGrid.addEventListener("pointercancel", terminarArrastre);
-
 elementos.categoryRail.addEventListener("input", sincronizarDesdeRail);
 elementos.categoryRail.addEventListener("change", terminarRail);
 elementos.categoryRail.addEventListener("pointerup", terminarRail);
+
+elementos.serviceModalList.addEventListener("click", (evento) => {
+  const boton = evento.target.closest("[data-action='add-service']");
+
+  if (boton) {
+    agregarServicio(Number(boton.dataset.serviceId));
+  }
+});
+
+elementos.quoteItems.addEventListener("click", manejarAccionCotizacion);
 elementos.btnRetry.addEventListener("click", cargarCatalogo);
 elementos.btnCloseServiceModal.addEventListener("click", cerrarModalServicios);
-elementos.modalOverlay.addEventListener("click", cerrarModalServicios);
+elementos.btnHeaderQuote.addEventListener("click", abrirDrawer);
+elementos.quoteFab.addEventListener("click", abrirDrawer);
+elementos.btnCloseDrawer.addEventListener("click", cerrarDrawer);
+elementos.btnClearQuote.addEventListener("click", vaciarCotizacion);
+
+elementos.modalOverlay.addEventListener("click", () => {
+  if (elementos.serviceModal.classList.contains("is-open")) {
+    cerrarModalServicios();
+  }
+
+  if (elementos.quoteDrawer.classList.contains("is-open")) {
+    cerrarDrawer();
+  }
+});
 
 window.addEventListener("resize", () => actualizarCarousel(false));
 
 document.addEventListener("keydown", (evento) => {
-  if (evento.key === "Escape" && elementos.serviceModal.classList.contains("is-open")) {
+  if (evento.key !== "Escape") {
+    return;
+  }
+
+  if (elementos.serviceModal.classList.contains("is-open")) {
     cerrarModalServicios();
+    return;
+  }
+
+  if (elementos.quoteDrawer.classList.contains("is-open")) {
+    cerrarDrawer();
   }
 });
 
