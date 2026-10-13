@@ -3,6 +3,7 @@ const RUTA_CATALOGO = "./data/servicios.json";
 const estado = {
   categorias: [],
   servicios: [],
+  categoriaActiva: null,
   carouselPosicion: 0,
   carouselInicio: 0,
   carouselPointerX: 0,
@@ -18,7 +19,13 @@ const elementos = {
   categorySection: document.querySelector("#category-section"),
   categoryGrid: document.querySelector("#category-grid"),
   categoryRail: document.querySelector("#category-rail"),
-  btnRetry: document.querySelector("#btn-retry")
+  btnRetry: document.querySelector("#btn-retry"),
+  modalOverlay: document.querySelector("#modal-overlay"),
+  serviceModal: document.querySelector("#service-modal"),
+  serviceModalTitle: document.querySelector("#service-modal-title"),
+  serviceModalDescription: document.querySelector("#service-modal-description"),
+  serviceModalList: document.querySelector("#service-modal-list"),
+  btnCloseServiceModal: document.querySelector("#btn-close-service-modal")
 };
 
 function escaparHTML(valor = "") {
@@ -28,6 +35,14 @@ function escaparHTML(valor = "") {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function formatearMoneda(valor) {
+  return new Intl.NumberFormat("es-AR", {
+    style: "currency",
+    currency: "USD",
+    maximumFractionDigits: 0
+  }).format(valor);
 }
 
 function validarCatalogo(datos) {
@@ -79,6 +94,14 @@ function renderizarCategorias() {
             <h2>${escaparHTML(nombre)}</h2>
             <p>${escaparHTML(descripcion)}</p>
           </div>
+          <button
+            class="category-explore"
+            type="button"
+            data-action="open-category"
+            data-category-id="${id}"
+          >
+            Explorar
+          </button>
         </div>
       </article>
     `)
@@ -173,8 +196,76 @@ function moverCarouselHacia(indice) {
   actualizarCarousel(true);
 }
 
+function abrirCategoria(categoriaId) {
+  const categoria = estado.categorias.find(({ id }) => id === categoriaId);
+
+  if (!categoria) {
+    return;
+  }
+
+  estado.categoriaActiva = categoriaId;
+  elementos.serviceModalTitle.textContent = categoria.nombre;
+  elementos.serviceModalDescription.textContent = categoria.descripcion;
+  renderizarServiciosCategoria();
+
+  elementos.modalOverlay.hidden = false;
+  elementos.serviceModal.hidden = false;
+
+  requestAnimationFrame(() => {
+    elementos.modalOverlay.classList.add("is-open");
+    elementos.serviceModal.classList.add("is-open");
+    elementos.serviceModal.setAttribute("aria-hidden", "false");
+    document.body.classList.add("modal-open");
+    elementos.btnCloseServiceModal.focus();
+  });
+}
+
+function renderizarServiciosCategoria() {
+  const servicios = estado.servicios.filter(
+    ({ categoriaId }) => categoriaId === estado.categoriaActiva
+  );
+
+  elementos.serviceModalList.innerHTML = servicios
+    .map(({ nombre, descripcion, precio, modalidad, unidad }) => {
+      const precioTexto = modalidad === "mensual" && unidad
+        ? `${formatearMoneda(precio)} / ${unidad}`
+        : `Desde ${formatearMoneda(precio)}`;
+
+      return `
+        <article class="service-card">
+          <div>
+            <h3>${escaparHTML(nombre)}</h3>
+            <p>${escaparHTML(descripcion)}</p>
+          </div>
+          <div class="service-price">
+            <span>${modalidad === "mensual" ? "Valor" : "Estimación base"}</span>
+            <strong>${precioTexto}</strong>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function cerrarModalServicios() {
+  elementos.modalOverlay.classList.remove("is-open");
+  elementos.serviceModal.classList.remove("is-open");
+  elementos.serviceModal.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+  estado.categoriaActiva = null;
+
+  window.setTimeout(() => {
+    elementos.modalOverlay.hidden = true;
+    elementos.serviceModal.hidden = true;
+  }, 220);
+}
+
 function iniciarArrastre(evento) {
   if (evento.button !== undefined && evento.button !== 0) {
+    return;
+  }
+
+  if (evento.target.closest(".category-explore")) {
     return;
   }
 
@@ -259,13 +350,28 @@ async function cargarCatalogo() {
 }
 
 elementos.categoryGrid.addEventListener("click", (evento) => {
+  const botonExplorar = evento.target.closest("[data-action='open-category']");
   const tarjeta = evento.target.closest(".category-stage");
 
-  if (!tarjeta || Date.now() < estado.carouselBloquearClickHasta) {
+  if (!tarjeta) {
     return;
   }
 
-  moverCarouselHacia(Number(tarjeta.dataset.categoryIndex));
+  if (botonExplorar) {
+    abrirCategoria(botonExplorar.dataset.categoryId);
+    return;
+  }
+
+  if (Date.now() < estado.carouselBloquearClickHasta) {
+    return;
+  }
+
+  if (!tarjeta.classList.contains("is-active")) {
+    moverCarouselHacia(Number(tarjeta.dataset.categoryIndex));
+    return;
+  }
+
+  abrirCategoria(tarjeta.dataset.categoryId);
 });
 
 elementos.categoryGrid.addEventListener("keydown", (evento) => {
@@ -273,14 +379,14 @@ elementos.categoryGrid.addEventListener("keydown", (evento) => {
     return;
   }
 
-  const tarjeta = evento.target.closest(".category-stage");
+  const tarjeta = evento.target.closest(".category-stage.is-active");
 
-  if (!tarjeta) {
+  if (!tarjeta || evento.target.closest(".category-explore")) {
     return;
   }
 
   evento.preventDefault();
-  moverCarouselHacia(Number(tarjeta.dataset.categoryIndex));
+  abrirCategoria(tarjeta.dataset.categoryId);
 });
 
 elementos.categoryGrid.addEventListener("pointerdown", iniciarArrastre);
@@ -292,6 +398,15 @@ elementos.categoryRail.addEventListener("input", sincronizarDesdeRail);
 elementos.categoryRail.addEventListener("change", terminarRail);
 elementos.categoryRail.addEventListener("pointerup", terminarRail);
 elementos.btnRetry.addEventListener("click", cargarCatalogo);
+elementos.btnCloseServiceModal.addEventListener("click", cerrarModalServicios);
+elementos.modalOverlay.addEventListener("click", cerrarModalServicios);
+
 window.addEventListener("resize", () => actualizarCarousel(false));
+
+document.addEventListener("keydown", (evento) => {
+  if (evento.key === "Escape" && elementos.serviceModal.classList.contains("is-open")) {
+    cerrarModalServicios();
+  }
+});
 
 cargarCatalogo();
