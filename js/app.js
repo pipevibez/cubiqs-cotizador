@@ -4,7 +4,14 @@ const estado = {
   categorias: [],
   servicios: [],
   cotizacion: {
-    items: []
+    items: [],
+    cliente: {
+      nombre: "",
+      empresa: "",
+      email: "",
+      plazo: "Sin fecha definida",
+      objetivo: ""
+    }
   },
   categoriaActiva: null,
   carouselPosicion: 0,
@@ -41,7 +48,22 @@ const elementos = {
   quoteFooter: document.querySelector("#quote-footer"),
   drawerTotal: document.querySelector("#drawer-total"),
   btnCloseDrawer: document.querySelector("#btn-close-drawer"),
-  btnClearQuote: document.querySelector("#btn-clear-quote")
+  btnReviewQuote: document.querySelector("#btn-review-quote"),
+  btnClearQuote: document.querySelector("#btn-clear-quote"),
+  catalogView: document.querySelector("#catalog-view"),
+  reviewView: document.querySelector("#review-view"),
+  btnBackCatalog: document.querySelector("#btn-back-catalog"),
+  reviewItems: document.querySelector("#review-items"),
+  reviewItemCount: document.querySelector("#review-item-count"),
+  reviewTotal: document.querySelector("#review-total"),
+  clientForm: document.querySelector("#client-form"),
+  clientName: document.querySelector("#client-name"),
+  clientCompany: document.querySelector("#client-company"),
+  clientEmail: document.querySelector("#client-email"),
+  clientTimeline: document.querySelector("#client-timeline"),
+  clientObjective: document.querySelector("#client-objective"),
+  objectiveCount: document.querySelector("#objective-count"),
+  autosaveIndicator: document.querySelector("#autosave-indicator")
 };
 
 function escaparHTML(valor = "") {
@@ -329,6 +351,15 @@ function recuperarBorrador() {
       };
     })
     .filter(Boolean);
+
+  const cliente = borrador.cliente || {};
+  estado.cotizacion.cliente = {
+    nombre: cliente.nombre || "",
+    empresa: cliente.empresa || "",
+    email: cliente.email || "",
+    plazo: cliente.plazo || "Sin fecha definida",
+    objetivo: cliente.objetivo || ""
+  };
 }
 
 function agregarServicio(servicioId) {
@@ -359,6 +390,14 @@ function eliminarServicio(servicioId) {
   if (estado.categoriaActiva) {
     renderizarServiciosCategoria();
   }
+
+  if (!elementos.reviewView.hidden) {
+    if (estado.cotizacion.items.length === 0) {
+      mostrarVistaCatalogo();
+    } else {
+      renderizarRevision();
+    }
+  }
 }
 
 function modificarCantidad(servicioId, cambio) {
@@ -383,7 +422,17 @@ function modificarCantidad(servicioId, cambio) {
 }
 
 function vaciarCotizacion() {
-  estado.cotizacion.items = [];
+  estado.cotizacion = {
+    items: [],
+    cliente: {
+      nombre: "",
+      empresa: "",
+      email: "",
+      plazo: "Sin fecha definida",
+      objetivo: ""
+    }
+  };
+
   CubiqsStorage.eliminarBorrador();
   actualizarCotizacion();
 
@@ -401,7 +450,7 @@ function actualizarCotizacion() {
   elementos.fabTotal.textContent = formatearMoneda(total);
   elementos.drawerCount.textContent = `${cantidad} ${cantidad === 1 ? "servicio seleccionado" : "servicios seleccionados"}`;
   elementos.drawerTotal.textContent = formatearMoneda(total);
-  elementos.quoteFab.hidden = cantidad === 0;
+  elementos.quoteFab.hidden = cantidad === 0 || !elementos.reviewView.hidden;
   elementos.quoteEmpty.hidden = cantidad > 0;
   elementos.quoteItems.hidden = cantidad === 0;
   elementos.quoteFooter.hidden = cantidad === 0;
@@ -443,6 +492,119 @@ function renderizarItemsCotizacion() {
       `;
     })
     .join("");
+}
+
+function mostrarVistaRevision() {
+  if (estado.cotizacion.items.length === 0) {
+    return;
+  }
+
+  cerrarDrawer();
+  elementos.catalogView.hidden = true;
+  elementos.reviewView.hidden = false;
+  elementos.quoteFab.hidden = true;
+  renderizarRevision();
+  cargarFormularioCliente();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function mostrarVistaCatalogo() {
+  elementos.reviewView.hidden = true;
+  elementos.catalogView.hidden = false;
+  actualizarCotizacion();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function renderizarRevision() {
+  elementos.reviewItemCount.textContent = estado.cotizacion.items.length;
+  elementos.reviewTotal.textContent = formatearMoneda(calcularTotal());
+
+  elementos.reviewItems.innerHTML = estado.cotizacion.items
+    .map(({ servicioId, cantidad }) => {
+      const servicio = obtenerServicio(servicioId);
+
+      if (!servicio) {
+        return "";
+      }
+
+      const subtotal = servicio.precio * cantidad;
+      const detalle = servicio.cantidadEditable
+        ? `${cantidad} ${pluralUnidad(servicio.unidad, cantidad)} × ${formatearMoneda(servicio.precio)}`
+        : "Proyecto";
+
+      return `
+        <article class="review-item">
+          <div>
+            <h3>${escaparHTML(servicio.nombre)}</h3>
+            <p>${detalle}</p>
+          </div>
+          <div class="review-item-actions">
+            <strong>${formatearMoneda(subtotal)}</strong>
+            <button type="button" data-action="remove-review-service" data-service-id="${servicio.id}">Eliminar</button>
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function cargarFormularioCliente() {
+  const { nombre, empresa, email, plazo, objetivo } = estado.cotizacion.cliente;
+  elementos.clientName.value = nombre;
+  elementos.clientCompany.value = empresa;
+  elementos.clientEmail.value = email;
+  elementos.clientTimeline.value = plazo || "Sin fecha definida";
+  elementos.clientObjective.value = objetivo;
+  actualizarContadorObjetivo();
+}
+
+function guardarCliente() {
+  estado.cotizacion.cliente = {
+    nombre: elementos.clientName.value.trim(),
+    empresa: elementos.clientCompany.value.trim(),
+    email: elementos.clientEmail.value.trim(),
+    plazo: elementos.clientTimeline.value || "Sin fecha definida",
+    objetivo: elementos.clientObjective.value.trim()
+  };
+
+  guardarBorrador();
+  elementos.autosaveIndicator.textContent = "Guardado";
+
+  window.setTimeout(() => {
+    elementos.autosaveIndicator.textContent = "Guardado automático";
+  }, 900);
+}
+
+function actualizarContadorObjetivo() {
+  elementos.objectiveCount.textContent = `${elementos.clientObjective.value.length} / 500`;
+}
+
+function validarCampoCliente(campo) {
+  const error = document.querySelector(`#error-${campo.id}`);
+
+  if (!error) {
+    return true;
+  }
+
+  let mensaje = "";
+
+  if (campo === elementos.clientName && campo.value.trim().length < 3) {
+    mensaje = "Ingresá tu nombre y apellido.";
+  }
+
+  if (campo === elementos.clientEmail) {
+    const email = campo.value.trim();
+    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+
+    if (!emailValido) {
+      mensaje = "Ingresá un email válido.";
+    }
+  }
+
+  campo.classList.toggle("has-error", Boolean(mensaje));
+  campo.setAttribute("aria-invalid", String(Boolean(mensaje)));
+  error.textContent = mensaje;
+  return !mensaje;
 }
 
 function abrirCapa(elemento, foco) {
@@ -588,7 +750,7 @@ function manejarAccionCotizacion(evento) {
 
   const servicioId = Number(boton.dataset.serviceId);
 
-  if (boton.dataset.action === "remove-service") {
+  if (boton.dataset.action === "remove-service" || boton.dataset.action === "remove-review-service") {
     eliminarServicio(servicioId);
   }
 
@@ -658,12 +820,35 @@ elementos.serviceModalList.addEventListener("click", (evento) => {
 });
 
 elementos.quoteItems.addEventListener("click", manejarAccionCotizacion);
+elementos.reviewItems.addEventListener("click", manejarAccionCotizacion);
 elementos.btnRetry.addEventListener("click", cargarCatalogo);
 elementos.btnCloseServiceModal.addEventListener("click", cerrarModalServicios);
 elementos.btnHeaderQuote.addEventListener("click", abrirDrawer);
 elementos.quoteFab.addEventListener("click", abrirDrawer);
 elementos.btnCloseDrawer.addEventListener("click", cerrarDrawer);
+elementos.btnReviewQuote.addEventListener("click", mostrarVistaRevision);
+elementos.btnBackCatalog.addEventListener("click", mostrarVistaCatalogo);
 elementos.btnClearQuote.addEventListener("click", vaciarCotizacion);
+
+elementos.clientForm.addEventListener("input", (evento) => {
+  guardarCliente();
+
+  if (evento.target === elementos.clientObjective) {
+    actualizarContadorObjetivo();
+  }
+
+  if (evento.target.classList.contains("has-error")) {
+    validarCampoCliente(evento.target);
+  }
+});
+
+elementos.clientForm.addEventListener("change", guardarCliente);
+
+elementos.clientForm.addEventListener("focusout", (evento) => {
+  if (evento.target === elementos.clientName || evento.target === elementos.clientEmail) {
+    validarCampoCliente(evento.target);
+  }
+});
 
 elementos.modalOverlay.addEventListener("click", () => {
   if (elementos.serviceModal.classList.contains("is-open")) {

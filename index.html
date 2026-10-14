@@ -29,7 +29,8 @@
   </header>
 
   <main class="app-shell">
-    <section class="hero" aria-labelledby="catalog-title">
+    <section id="catalog-view" class="catalog-view">
+      <section class="hero" aria-labelledby="catalog-title">
       <h1 id="catalog-title">Armá tu cotización</h1>
       <p>Elegí un rubro y explorá los servicios que mejor se adapten a tu proyecto.</p>
     </section>
@@ -62,6 +63,76 @@
             aria-label="Mover carrusel de rubros"
           />
         </div>
+      </div>
+      </section>
+    </section>
+
+    <section id="review-view" class="review-view" hidden aria-labelledby="review-title">
+      <button id="btn-back-catalog" class="back-button" type="button">← Volver al catálogo</button>
+
+      <div class="review-heading">
+        <h1 id="review-title">Revisá tu cotización</h1>
+        <p>Revisá los servicios seleccionados y completá tus datos de contacto.</p>
+      </div>
+
+      <div class="review-layout">
+        <section class="review-panel" aria-labelledby="review-services-title">
+          <div class="review-panel-heading">
+            <h2 id="review-services-title">Servicios seleccionados</h2>
+            <span id="review-item-count" class="review-count">0</span>
+          </div>
+          <div id="review-items" class="review-items"></div>
+          <div class="review-total">
+            <span>Estimación total</span>
+            <strong id="review-total">USD 0</strong>
+          </div>
+        </section>
+
+        <section class="review-panel" aria-labelledby="client-form-title">
+          <div class="review-panel-heading">
+            <h2 id="client-form-title">Tus datos</h2>
+            <span id="autosave-indicator" class="autosave-indicator">Guardado automático</span>
+          </div>
+
+          <form id="client-form" class="client-form" novalidate>
+            <div class="field-group field-full">
+              <label for="client-name">Nombre y apellido *</label>
+              <input id="client-name" name="nombre" type="text" autocomplete="name" required />
+              <p id="error-client-name" class="field-error"></p>
+            </div>
+
+            <div class="field-group">
+              <label for="client-company">Empresa o marca</label>
+              <input id="client-company" name="empresa" type="text" autocomplete="organization" />
+            </div>
+
+            <div class="field-group">
+              <label for="client-email">Email *</label>
+              <input id="client-email" name="email" type="email" autocomplete="email" required />
+              <p id="error-client-email" class="field-error"></p>
+            </div>
+
+            <div class="field-group field-full">
+              <label for="client-timeline">Momento estimado</label>
+              <select id="client-timeline" name="plazo">
+                <option value="Sin fecha definida">Sin fecha definida</option>
+                <option value="Lo antes posible">Lo antes posible</option>
+                <option value="1–2 meses">En 1 a 2 meses</option>
+                <option value="3–6 meses">En 3 a 6 meses</option>
+                <option value="Más de 6 meses">Más adelante</option>
+              </select>
+            </div>
+
+            <div class="field-group field-full">
+              <label for="client-objective">Objetivo del proyecto</label>
+              <textarea id="client-objective" name="objetivo" maxlength="500" rows="5" placeholder="Contanos brevemente qué querés resolver, lanzar o mejorar."></textarea>
+              <div class="field-helper">
+                <span>Opcional</span>
+                <span id="objective-count">0 / 500</span>
+              </div>
+            </div>
+          </form>
+        </section>
       </div>
     </section>
   </main>
@@ -126,6 +197,7 @@
         <span>Estimación total</span>
         <strong id="drawer-total">USD 0</strong>
       </div>
+      <button id="btn-review-quote" class="review-quote-button" type="button">Revisar cotización</button>
       <button id="btn-clear-quote" class="clear-quote-button" type="button">Vaciar cotización</button>
     </footer>
   </aside>
