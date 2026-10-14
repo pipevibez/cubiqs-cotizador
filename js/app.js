@@ -293,6 +293,44 @@ function calcularTotal() {
   }, 0);
 }
 
+function guardarBorrador() {
+  if (estado.cotizacion.items.length === 0) {
+    CubiqsStorage.eliminarBorrador();
+    return;
+  }
+
+  CubiqsStorage.guardarBorrador(estado.cotizacion);
+}
+
+function recuperarBorrador() {
+  const borrador = CubiqsStorage.obtenerBorrador();
+
+  if (!borrador?.items?.length) {
+    return;
+  }
+
+  estado.cotizacion.items = borrador.items
+    .map(({ servicioId, cantidad }) => {
+      const servicio = obtenerServicio(servicioId);
+
+      if (!servicio) {
+        return null;
+      }
+
+      const minimo = servicio.cantidadMinima || 1;
+      const maximo = servicio.cantidadMaxima || minimo;
+      const cantidadValida = servicio.cantidadEditable
+        ? Math.min(maximo, Math.max(minimo, Number(cantidad) || minimo))
+        : minimo;
+
+      return {
+        servicioId: servicio.id,
+        cantidad: cantidadValida
+      };
+    })
+    .filter(Boolean);
+}
+
 function agregarServicio(servicioId) {
   const servicio = obtenerServicio(servicioId);
 
@@ -305,6 +343,7 @@ function agregarServicio(servicioId) {
     cantidad: servicio.cantidadMinima || 1
   });
 
+  guardarBorrador();
   actualizarCotizacion();
   renderizarServiciosCategoria();
 }
@@ -314,6 +353,7 @@ function eliminarServicio(servicioId) {
     ({ servicioId: id }) => id !== Number(servicioId)
   );
 
+  guardarBorrador();
   actualizarCotizacion();
 
   if (estado.categoriaActiva) {
@@ -338,11 +378,13 @@ function modificarCantidad(servicioId, cambio) {
   }
 
   item.cantidad = nuevaCantidad;
+  guardarBorrador();
   actualizarCotizacion();
 }
 
 function vaciarCotizacion() {
   estado.cotizacion.items = [];
+  CubiqsStorage.eliminarBorrador();
   actualizarCotizacion();
 
   if (estado.categoriaActiva) {
@@ -525,6 +567,7 @@ async function cargarCatalogo() {
 
     estado.categorias = datos.categorias;
     estado.servicios = datos.servicios;
+    recuperarBorrador();
     renderizarCategorias();
     elementos.categorySection.hidden = false;
     actualizarCotizacion();
