@@ -1,4 +1,5 @@
 const RUTA_CATALOGO = "./data/servicios.json";
+const NUMERO_WHATSAPP = "5493812091755";
 
 const estado = {
   categorias: [],
@@ -13,6 +14,7 @@ const estado = {
       objetivo: ""
     }
   },
+  ultimaCotizacion: null,
   categoriaActiva: null,
   carouselPosicion: 0,
   carouselInicio: 0,
@@ -31,6 +33,7 @@ const elementos = {
   categoryRail: document.querySelector("#category-rail"),
   btnRetry: document.querySelector("#btn-retry"),
   btnHeaderQuote: document.querySelector("#btn-header-cotizacion"),
+  btnLastQuote: document.querySelector("#btn-ultima-cotizacion"),
   headerQuoteCount: document.querySelector("#header-quote-count"),
   quoteFab: document.querySelector("#quote-fab"),
   fabCount: document.querySelector("#fab-count"),
@@ -52,6 +55,7 @@ const elementos = {
   btnClearQuote: document.querySelector("#btn-clear-quote"),
   catalogView: document.querySelector("#catalog-view"),
   reviewView: document.querySelector("#review-view"),
+  successView: document.querySelector("#success-view"),
   btnBackCatalog: document.querySelector("#btn-back-catalog"),
   reviewItems: document.querySelector("#review-items"),
   reviewItemCount: document.querySelector("#review-item-count"),
@@ -63,8 +67,37 @@ const elementos = {
   clientTimeline: document.querySelector("#client-timeline"),
   clientObjective: document.querySelector("#client-objective"),
   objectiveCount: document.querySelector("#objective-count"),
-  autosaveIndicator: document.querySelector("#autosave-indicator")
+  autosaveIndicator: document.querySelector("#autosave-indicator"),
+  finalQuoteId: document.querySelector("#final-quote-id"),
+  finalQuoteDate: document.querySelector("#final-quote-date"),
+  finalClientSummary: document.querySelector("#final-client-summary"),
+  finalServices: document.querySelector("#final-services"),
+  finalTotal: document.querySelector("#final-total"),
+  btnWhatsapp: document.querySelector("#btn-whatsapp"),
+  btnCopySummary: document.querySelector("#btn-copy-summary"),
+  btnNewQuote: document.querySelector("#btn-new-quote")
 };
+
+const Toast = Swal.mixin({
+  toast: true,
+  position: "bottom-end",
+  showConfirmButton: false,
+  timer: 2200,
+  timerProgressBar: true
+});
+
+function crearCotizacionVacia() {
+  return {
+    items: [],
+    cliente: {
+      nombre: "",
+      empresa: "",
+      email: "",
+      plazo: "Sin fecha definida",
+      objetivo: ""
+    }
+  };
+}
 
 function escaparHTML(valor = "") {
   return String(valor)
@@ -81,6 +114,20 @@ function formatearMoneda(valor) {
     currency: "USD",
     maximumFractionDigits: 0
   }).format(valor);
+}
+
+function formatearFecha(fecha) {
+  return new Intl.DateTimeFormat("es-AR", {
+    day: "2-digit",
+    month: "long",
+    year: "numeric"
+  }).format(new Date(fecha));
+}
+
+function mostrarToast(mensaje) {
+  Toast.fire({
+    text: mensaje
+  });
 }
 
 function pluralUnidad(unidad, cantidad) {
@@ -421,24 +468,34 @@ function modificarCantidad(servicioId, cambio) {
   actualizarCotizacion();
 }
 
-function vaciarCotizacion() {
-  estado.cotizacion = {
-    items: [],
-    cliente: {
-      nombre: "",
-      empresa: "",
-      email: "",
-      plazo: "Sin fecha definida",
-      objetivo: ""
-    }
-  };
+async function vaciarCotizacion() {
+  if (estado.cotizacion.items.length === 0) {
+    return;
+  }
 
+  const resultado = await Swal.fire({
+    title: "¿Vaciar cotización?",
+    text: "Se eliminarán todos los servicios del borrador actual.",
+    showCancelButton: true,
+    confirmButtonText: "Vaciar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true
+  });
+
+  if (!resultado.isConfirmed) {
+    return;
+  }
+
+  estado.cotizacion = crearCotizacionVacia();
   CubiqsStorage.eliminarBorrador();
   actualizarCotizacion();
 
   if (estado.categoriaActiva) {
     renderizarServiciosCategoria();
   }
+
+  cerrarDrawer();
+  mostrarToast("Cotización vaciada");
 }
 
 function actualizarCotizacion() {
@@ -502,6 +559,7 @@ function mostrarVistaRevision() {
   cerrarDrawer();
   elementos.catalogView.hidden = true;
   elementos.reviewView.hidden = false;
+  elementos.successView.hidden = true;
   elementos.quoteFab.hidden = true;
   renderizarRevision();
   cargarFormularioCliente();
@@ -510,6 +568,7 @@ function mostrarVistaRevision() {
 
 function mostrarVistaCatalogo() {
   elementos.reviewView.hidden = true;
+  elementos.successView.hidden = true;
   elementos.catalogView.hidden = false;
   actualizarCotizacion();
   window.scrollTo({ top: 0, behavior: "smooth" });
@@ -605,6 +664,251 @@ function validarCampoCliente(campo) {
   campo.setAttribute("aria-invalid", String(Boolean(mensaje)));
   error.textContent = mensaje;
   return !mensaje;
+}
+
+function validarFormularioCliente() {
+  const nombreValido = validarCampoCliente(elementos.clientName);
+  const emailValido = validarCampoCliente(elementos.clientEmail);
+  return nombreValido && emailValido;
+}
+
+async function confirmarCotizacion() {
+  guardarCliente();
+
+  if (!validarFormularioCliente()) {
+    mostrarToast("Revisá los datos indicados");
+    return;
+  }
+
+  const cantidad = estado.cotizacion.items.length;
+  const total = calcularTotal();
+  const resultado = await Swal.fire({
+    title: "Confirmar cotización",
+    html: `Vas a generar una cotización con <strong>${cantidad} ${cantidad === 1 ? "servicio" : "servicios"}</strong> por una estimación de <strong>${formatearMoneda(total)}</strong>.`,
+    showCancelButton: true,
+    confirmButtonText: "Confirmar",
+    cancelButtonText: "Volver",
+    reverseButtons: true
+  });
+
+  if (!resultado.isConfirmed) {
+    return;
+  }
+
+  const cotizacionFinal = construirCotizacionFinal();
+  CubiqsStorage.guardarUltimaCotizacion(cotizacionFinal);
+  CubiqsStorage.eliminarBorrador();
+  estado.ultimaCotizacion = cotizacionFinal;
+  estado.cotizacion = crearCotizacionVacia();
+  actualizarBotonUltimaCotizacion();
+  actualizarCotizacion();
+  mostrarCotizacionFinal(cotizacionFinal);
+}
+
+function construirCotizacionFinal() {
+  const fecha = new Date();
+  const servicios = estado.cotizacion.items
+    .map(({ servicioId, cantidad }) => {
+      const servicio = obtenerServicio(servicioId);
+
+      if (!servicio) {
+        return null;
+      }
+
+      return {
+        id: servicio.id,
+        nombre: servicio.nombre,
+        precio: servicio.precio,
+        cantidad,
+        unidad: servicio.unidad,
+        modalidad: servicio.modalidad,
+        subtotal: servicio.precio * cantidad
+      };
+    })
+    .filter(Boolean);
+
+  return {
+    id: generarIdCotizacion(fecha),
+    fecha: fecha.toISOString(),
+    cliente: { ...estado.cotizacion.cliente },
+    servicios,
+    total: servicios.reduce((suma, { subtotal }) => suma + subtotal, 0)
+  };
+}
+
+function generarIdCotizacion(fecha) {
+  const anio = fecha.getFullYear();
+  const sufijo = String(fecha.getTime()).slice(-6);
+  return `CQ-${anio}-${sufijo}`;
+}
+
+function mostrarCotizacionFinal(cotizacion) {
+  if (!cotizacion) {
+    return;
+  }
+
+  cerrarModalServiciosSiAbierto();
+  cerrarDrawerSiAbierto();
+  elementos.catalogView.hidden = true;
+  elementos.reviewView.hidden = true;
+  elementos.successView.hidden = false;
+  elementos.quoteFab.hidden = true;
+
+  elementos.finalQuoteId.textContent = cotizacion.id;
+  elementos.finalQuoteDate.textContent = formatearFecha(cotizacion.fecha);
+  elementos.finalTotal.textContent = formatearMoneda(cotizacion.total);
+
+  const { nombre, empresa, email, plazo, objetivo } = cotizacion.cliente;
+  elementos.finalClientSummary.innerHTML = `
+    <div>
+      <span>Cliente</span>
+      <strong>${escaparHTML(nombre)}</strong>
+      <small>${escaparHTML(empresa || "Sin empresa indicada")}</small>
+    </div>
+    <div>
+      <span>Contacto</span>
+      <strong>${escaparHTML(email)}</strong>
+      <small>${escaparHTML(plazo || "Sin fecha definida")}</small>
+    </div>
+    ${objetivo ? `
+      <div class="final-objective">
+        <span>Objetivo</span>
+        <p>${escaparHTML(objetivo)}</p>
+      </div>
+    ` : ""}
+  `;
+
+  elementos.finalServices.innerHTML = cotizacion.servicios
+    .map(({ nombre: servicioNombre, cantidad, unidad, modalidad, subtotal }) => {
+      const detalle = modalidad === "mensual" && unidad
+        ? `${cantidad} ${pluralUnidad(unidad, cantidad)}`
+        : "Proyecto";
+
+      return `
+        <div class="final-service-row">
+          <div>
+            <strong>${escaparHTML(servicioNombre)}</strong>
+            <span>${detalle}</span>
+          </div>
+          <strong>${formatearMoneda(subtotal)}</strong>
+        </div>
+      `;
+    })
+    .join("");
+
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function actualizarBotonUltimaCotizacion() {
+  elementos.btnLastQuote.hidden = !estado.ultimaCotizacion;
+}
+
+function construirResumenTexto(cotizacion) {
+  const { nombre, empresa, email, plazo, objetivo } = cotizacion.cliente;
+  const servicios = cotizacion.servicios
+    .map(({ nombre: servicioNombre, cantidad, unidad, modalidad, subtotal }) => {
+      const cantidadTexto = modalidad === "mensual" && unidad
+        ? ` — ${cantidad} ${pluralUnidad(unidad, cantidad)}`
+        : "";
+      return `• ${servicioNombre}${cantidadTexto} — ${formatearMoneda(subtotal)}`;
+    })
+    .join("\n");
+
+  return [
+    `Cotización ${cotizacion.id}`,
+    `Fecha: ${formatearFecha(cotizacion.fecha)}`,
+    `Nombre: ${nombre}`,
+    empresa ? `Empresa: ${empresa}` : "",
+    `Email: ${email}`,
+    `Momento estimado: ${plazo || "Sin fecha definida"}`,
+    "Servicios:",
+    servicios,
+    `Estimación total: ${formatearMoneda(cotizacion.total)}`,
+    objetivo ? `Objetivo del proyecto: ${objetivo}` : ""
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+function construirMensajeWhatsApp(cotizacion) {
+  const { nombre, plazo, objetivo } = cotizacion.cliente;
+  const servicios = cotizacion.servicios
+    .map(({ nombre: servicioNombre, cantidad, unidad, modalidad }) => {
+      const cantidadTexto = modalidad === "mensual" && unidad
+        ? ` — ${cantidad} ${pluralUnidad(unidad, cantidad)}`
+        : "";
+      return `• ${servicioNombre}${cantidadTexto}`;
+    })
+    .join("\n");
+
+  return [
+    `Hola, soy ${nombre}.`,
+    `Acabo de generar la cotización ${cotizacion.id} desde la web de Cubiqs.`,
+    "",
+    cotizacion.servicios.length === 1 ? "Servicio seleccionado:" : "Servicios seleccionados:",
+    servicios,
+    "",
+    `Estimación generada: ${formatearMoneda(cotizacion.total)}`,
+    `Momento estimado: ${plazo || "Sin fecha definida"}`,
+    objetivo ? `Objetivo: ${objetivo}` : "",
+    "",
+    "¿Podemos revisar el alcance con el equipo?"
+  ]
+    .filter((linea) => linea !== "")
+    .join("\n");
+}
+
+function abrirWhatsApp() {
+  if (!estado.ultimaCotizacion) {
+    return;
+  }
+
+  const mensaje = construirMensajeWhatsApp(estado.ultimaCotizacion);
+  window.open(`https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(mensaje)}`, "_blank", "noopener,noreferrer");
+}
+
+async function copiarResumen() {
+  if (!estado.ultimaCotizacion) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(construirResumenTexto(estado.ultimaCotizacion));
+    mostrarToast("Resumen copiado");
+  } catch {
+    mostrarToast("No pudimos copiar el resumen");
+  }
+}
+
+async function iniciarNuevaCotizacion() {
+  const resultado = await Swal.fire({
+    title: "Nueva cotización",
+    text: "La última cotización seguirá guardada y podrás consultarla desde el encabezado.",
+    showCancelButton: true,
+    confirmButtonText: "Empezar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true
+  });
+
+  if (!resultado.isConfirmed) {
+    return;
+  }
+
+  estado.cotizacion = crearCotizacionVacia();
+  CubiqsStorage.eliminarBorrador();
+  mostrarVistaCatalogo();
+}
+
+function cerrarModalServiciosSiAbierto() {
+  if (elementos.serviceModal.classList.contains("is-open")) {
+    cerrarModalServicios();
+  }
+}
+
+function cerrarDrawerSiAbierto() {
+  if (elementos.quoteDrawer.classList.contains("is-open")) {
+    cerrarDrawer();
+  }
 }
 
 function abrirCapa(elemento, foco) {
@@ -729,10 +1033,12 @@ async function cargarCatalogo() {
 
     estado.categorias = datos.categorias;
     estado.servicios = datos.servicios;
+    estado.ultimaCotizacion = CubiqsStorage.obtenerUltimaCotizacion();
     recuperarBorrador();
     renderizarCategorias();
     elementos.categorySection.hidden = false;
     actualizarCotizacion();
+    actualizarBotonUltimaCotizacion();
   } catch (error) {
     elementos.errorState.hidden = false;
   } finally {
@@ -849,6 +1155,16 @@ elementos.clientForm.addEventListener("focusout", (evento) => {
     validarCampoCliente(evento.target);
   }
 });
+
+elementos.clientForm.addEventListener("submit", (evento) => {
+  evento.preventDefault();
+  confirmarCotizacion();
+});
+
+elementos.btnWhatsapp.addEventListener("click", abrirWhatsApp);
+elementos.btnCopySummary.addEventListener("click", copiarResumen);
+elementos.btnNewQuote.addEventListener("click", iniciarNuevaCotizacion);
+elementos.btnLastQuote.addEventListener("click", () => mostrarCotizacionFinal(estado.ultimaCotizacion));
 
 elementos.modalOverlay.addEventListener("click", () => {
   if (elementos.serviceModal.classList.contains("is-open")) {

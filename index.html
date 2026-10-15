@@ -9,7 +9,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" />
   <link rel="stylesheet" href="css/style.css" />
+
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11" defer></script>
   <script src="js/storage.js" defer></script>
   <script src="js/app.js" defer></script>
 </head>
@@ -22,48 +25,51 @@
       <span class="brand-name">Cubiqs</span>
     </a>
 
-    <button id="btn-header-cotizacion" class="quote-header-button" type="button" aria-controls="quote-drawer" aria-expanded="false">
-      <span>Tu cotización</span>
-      <span id="header-quote-count" class="quote-count">0</span>
-    </button>
+    <div class="header-actions">
+      <button id="btn-ultima-cotizacion" class="last-quote-button" type="button" hidden>Última cotización</button>
+      <button id="btn-header-cotizacion" class="quote-header-button" type="button" aria-controls="quote-drawer" aria-expanded="false">
+        <span>Tu cotización</span>
+        <span id="header-quote-count" class="quote-count">0</span>
+      </button>
+    </div>
   </header>
 
   <main class="app-shell">
     <section id="catalog-view" class="catalog-view">
       <section class="hero" aria-labelledby="catalog-title">
-      <h1 id="catalog-title">Armá tu cotización</h1>
-      <p>Elegí un rubro y explorá los servicios que mejor se adapten a tu proyecto.</p>
-    </section>
+        <h1 id="catalog-title">Armá tu cotización</h1>
+        <p>Elegí un rubro y explorá los servicios que mejor se adapten a tu proyecto.</p>
+      </section>
 
-    <section class="catalog-section" aria-label="Rubros de servicios">
-      <div id="loading-state" class="status-card" aria-live="polite">
-        <span class="loading-dot" aria-hidden="true"></span>
-        <span>Preparando servicios...</span>
-      </div>
-
-      <div id="error-state" class="status-card error-card" hidden>
-        <div>
-          <h2>No pudimos cargar los servicios</h2>
-          <p>Revisá la conexión e intentá nuevamente.</p>
+      <section class="catalog-section" aria-label="Rubros de servicios">
+        <div id="loading-state" class="status-card" aria-live="polite">
+          <span class="loading-dot" aria-hidden="true"></span>
+          <span>Preparando servicios...</span>
         </div>
-        <button id="btn-retry" type="button">Reintentar</button>
-      </div>
 
-      <div id="category-section" class="category-section" hidden>
-        <div id="category-grid" class="category-carousel" role="list" aria-label="Rubros disponibles"></div>
-        <div class="category-rail-shell">
-          <input
-            id="category-rail"
-            class="category-rail"
-            type="range"
-            min="0"
-            max="4"
-            step="0.01"
-            value="0"
-            aria-label="Mover carrusel de rubros"
-          />
+        <div id="error-state" class="status-card error-card" hidden>
+          <div>
+            <h2>No pudimos cargar los servicios</h2>
+            <p>Revisá la conexión e intentá nuevamente.</p>
+          </div>
+          <button id="btn-retry" type="button">Reintentar</button>
         </div>
-      </div>
+
+        <div id="category-section" class="category-section" hidden>
+          <div id="category-grid" class="category-carousel" role="list" aria-label="Rubros disponibles"></div>
+          <div class="category-rail-shell">
+            <input
+              id="category-rail"
+              class="category-rail"
+              type="range"
+              min="0"
+              max="4"
+              step="0.01"
+              value="0"
+              aria-label="Mover carrusel de rubros"
+            />
+          </div>
+        </div>
       </section>
     </section>
 
@@ -131,8 +137,44 @@
                 <span id="objective-count">0 / 500</span>
               </div>
             </div>
+
+            <div class="field-full">
+              <button id="btn-confirm-quote" class="confirm-quote-button" type="submit">Confirmar cotización</button>
+            </div>
           </form>
         </section>
+      </div>
+    </section>
+
+    <section id="success-view" class="success-view" hidden aria-labelledby="success-title">
+      <div class="success-heading">
+        <span class="success-check" aria-hidden="true">✓</span>
+        <h1 id="success-title">Cotización generada</h1>
+        <p>La cotización quedó guardada. Podés conservar el resumen o continuar la conversación con el equipo.</p>
+      </div>
+
+      <section class="final-quote-card" aria-label="Resumen de cotización">
+        <div class="final-quote-top">
+          <div>
+            <span>Cotización</span>
+            <strong id="final-quote-id">—</strong>
+          </div>
+          <span id="final-quote-date">—</span>
+        </div>
+
+        <div id="final-client-summary" class="final-client-summary"></div>
+        <div id="final-services" class="final-services"></div>
+
+        <div class="final-total">
+          <span>Estimación total</span>
+          <strong id="final-total">USD 0</strong>
+        </div>
+      </section>
+
+      <div class="success-actions">
+        <button id="btn-whatsapp" class="primary-action" type="button">Continuar por WhatsApp</button>
+        <button id="btn-copy-summary" class="secondary-action" type="button">Copiar resumen</button>
+        <button id="btn-new-quote" class="text-action" type="button">Nueva cotización</button>
       </div>
     </section>
   </main>
