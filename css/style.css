@@ -1642,11 +1642,6 @@ svg {
 }
 
 /* SweetAlert2 */
-.swal2-container {
-  backdrop-filter: blur(5px);
-  -webkit-backdrop-filter: blur(5px);
-}
-
 .cubiqs-swal {
   position: relative;
   isolation: isolate;
