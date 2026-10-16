@@ -1,39 +1,59 @@
-const CLAVE_BORRADOR = "cubiqs-cotizacion-borrador";
-const CLAVE_ULTIMA_COTIZACION = "cubiqs-ultima-cotizacion";
+const CubiqsStorage = (() => {
+  const CLAVE_BORRADOR = "cubiqs_cotizacion_borrador";
+  const CLAVE_ULTIMA_COTIZACION = "cubiqs_ultima_cotizacion";
+  const CLAVE_VISTA = "cubiqs_estado_vista";
 
-function obtenerJSON(clave) {
-  const valor = localStorage.getItem(clave);
-
-  if (!valor) {
-    return null;
+  function leerJSON(clave, fallback = null) {
+    try {
+      const valor = localStorage.getItem(clave);
+      return valor ? JSON.parse(valor) : fallback;
+    } catch (error) {
+      localStorage.removeItem(clave);
+      return fallback;
+    }
   }
 
-  try {
-    return JSON.parse(valor);
-  } catch {
-    localStorage.removeItem(clave);
-    return null;
+  function guardarBorrador(borrador) {
+    localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(borrador));
   }
-}
 
-const CubiqsStorage = {
-  guardarBorrador(cotizacion) {
-    localStorage.setItem(CLAVE_BORRADOR, JSON.stringify(cotizacion));
-  },
+  function obtenerBorrador() {
+    return leerJSON(CLAVE_BORRADOR, null);
+  }
 
-  obtenerBorrador() {
-    return obtenerJSON(CLAVE_BORRADOR);
-  },
-
-  eliminarBorrador() {
+  function eliminarBorrador() {
     localStorage.removeItem(CLAVE_BORRADOR);
-  },
-
-  guardarUltimaCotizacion(cotizacion) {
-    localStorage.setItem(CLAVE_ULTIMA_COTIZACION, JSON.stringify(cotizacion));
-  },
-
-  obtenerUltimaCotizacion() {
-    return obtenerJSON(CLAVE_ULTIMA_COTIZACION);
   }
-};
+
+  function guardarUltimaCotizacion(cotizacion) {
+    localStorage.setItem(CLAVE_ULTIMA_COTIZACION, JSON.stringify(cotizacion));
+  }
+
+  function obtenerUltimaCotizacion() {
+    return leerJSON(CLAVE_ULTIMA_COTIZACION, null);
+  }
+
+  function guardarVista(vista) {
+    localStorage.setItem(CLAVE_VISTA, vista);
+  }
+
+  function obtenerVista() {
+    return localStorage.getItem(CLAVE_VISTA) || "catalogo";
+  }
+
+  function vaciarEstadoTemporal() {
+    localStorage.removeItem(CLAVE_BORRADOR);
+    localStorage.removeItem(CLAVE_VISTA);
+  }
+
+  return {
+    guardarBorrador,
+    obtenerBorrador,
+    eliminarBorrador,
+    guardarUltimaCotizacion,
+    obtenerUltimaCotizacion,
+    guardarVista,
+    obtenerVista,
+    vaciarEstadoTemporal
+  };
+})();

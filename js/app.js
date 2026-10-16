@@ -4,16 +4,7 @@ const NUMERO_WHATSAPP = "5493812091755";
 const estado = {
   categorias: [],
   servicios: [],
-  cotizacion: {
-    items: [],
-    cliente: {
-      nombre: "",
-      empresa: "",
-      email: "",
-      plazo: "Sin fecha definida",
-      objetivo: ""
-    }
-  },
+  cotizacion: crearBorradorVacio(),
   ultimaCotizacion: null,
   categoriaActiva: null,
   carouselPosicion: 0,
@@ -26,19 +17,23 @@ const estado = {
 };
 
 const elementos = {
+  catalogView: document.querySelector("#catalog-view"),
+  reviewView: document.querySelector("#review-view"),
+  successView: document.querySelector("#success-view"),
   loadingState: document.querySelector("#loading-state"),
   errorState: document.querySelector("#error-state"),
   categorySection: document.querySelector("#category-section"),
   categoryGrid: document.querySelector("#category-grid"),
+  categorySkeletons: document.querySelector("#category-skeletons"),
   categoryRail: document.querySelector("#category-rail"),
   btnRetry: document.querySelector("#btn-retry"),
   btnHeaderQuote: document.querySelector("#btn-header-cotizacion"),
-  btnLastQuote: document.querySelector("#btn-ultima-cotizacion"),
   headerQuoteCount: document.querySelector("#header-quote-count"),
+  btnLastQuote: document.querySelector("#btn-ultima-cotizacion"),
   quoteFab: document.querySelector("#quote-fab"),
   fabCount: document.querySelector("#fab-count"),
   fabTotal: document.querySelector("#fab-total"),
-  modalOverlay: document.querySelector("#modal-overlay"),
+  overlay: document.querySelector("#overlay"),
   serviceModal: document.querySelector("#service-modal"),
   serviceModalTitle: document.querySelector("#service-modal-title"),
   serviceModalDescription: document.querySelector("#service-modal-description"),
@@ -53,9 +48,6 @@ const elementos = {
   btnCloseDrawer: document.querySelector("#btn-close-drawer"),
   btnReviewQuote: document.querySelector("#btn-review-quote"),
   btnClearQuote: document.querySelector("#btn-clear-quote"),
-  catalogView: document.querySelector("#catalog-view"),
-  reviewView: document.querySelector("#review-view"),
-  successView: document.querySelector("#success-view"),
   btnBackCatalog: document.querySelector("#btn-back-catalog"),
   reviewItems: document.querySelector("#review-items"),
   reviewItemCount: document.querySelector("#review-item-count"),
@@ -65,6 +57,10 @@ const elementos = {
   clientCompany: document.querySelector("#client-company"),
   clientEmail: document.querySelector("#client-email"),
   clientTimeline: document.querySelector("#client-timeline"),
+  timelineSelect: document.querySelector("#timeline-select"),
+  timelineSelectTrigger: document.querySelector("#timeline-select-trigger"),
+  timelineSelectValue: document.querySelector("#timeline-select-value"),
+  timelineSelectMenu: document.querySelector("#timeline-select-menu"),
   clientObjective: document.querySelector("#client-objective"),
   objectiveCount: document.querySelector("#objective-count"),
   autosaveIndicator: document.querySelector("#autosave-indicator"),
@@ -82,11 +78,14 @@ const Toast = Swal.mixin({
   toast: true,
   position: "bottom-end",
   showConfirmButton: false,
-  timer: 2200,
-  timerProgressBar: true
+  timer: 2300,
+  timerProgressBar: true,
+  customClass: {
+    popup: "cubiqs-toast"
+  }
 });
 
-function crearCotizacionVacia() {
+function crearBorradorVacio() {
   return {
     items: [],
     cliente: {
@@ -95,7 +94,8 @@ function crearCotizacionVacia() {
       email: "",
       plazo: "Sin fecha definida",
       objetivo: ""
-    }
+    },
+    actualizadoEn: new Date().toISOString()
   };
 }
 
@@ -124,18 +124,51 @@ function formatearFecha(fecha) {
   }).format(new Date(fecha));
 }
 
-function mostrarToast(mensaje) {
-  Toast.fire({
-    text: mensaje
-  });
-}
-
 function pluralUnidad(unidad, cantidad) {
   if (!unidad || cantidad === 1) {
     return unidad || "unidad";
   }
 
   return unidad === "mes" ? "meses" : `${unidad}s`;
+}
+
+function mostrarToast(mensaje, simbolo = "✓") {
+  Toast.fire({
+    html: `
+      <div class="toast-message">
+        <span class="toast-symbol" aria-hidden="true">${escaparHTML(simbolo)}</span>
+        <span>${escaparHTML(mensaje)}</span>
+      </div>
+    `
+  });
+}
+
+function clasesSweetAlert() {
+  return {
+    popup: "cubiqs-swal",
+    title: "cubiqs-swal-title",
+    htmlContainer: "cubiqs-swal-text",
+    confirmButton: "cubiqs-swal-confirm",
+    cancelButton: "cubiqs-swal-cancel",
+    actions: "cubiqs-swal-actions"
+  };
+}
+
+function configuracionSweetAlert() {
+  return {
+    buttonsStyling: false,
+    customClass: clasesSweetAlert(),
+    showClass: {
+      popup: "swal2-show"
+    },
+    hideClass: {
+      popup: "swal2-hide"
+    }
+  };
+}
+
+function renderizarSkeletons() {
+  elementos.categorySkeletons.innerHTML = "";
 }
 
 function validarCatalogo(datos) {
@@ -156,6 +189,41 @@ function validarCatalogo(datos) {
 
   if (!estructuraValida) {
     throw new Error("Hay servicios con datos incompletos.");
+  }
+}
+
+async function cargarCatalogo() {
+  estado.cargando = true;
+  elementos.loadingState.hidden = false;
+  elementos.errorState.hidden = true;
+  elementos.categorySection.hidden = true;
+  let cargaCorrecta = false;
+
+  try {
+    const respuesta = await fetch(RUTA_CATALOGO);
+
+    if (!respuesta.ok) {
+      throw new Error(`No se pudo cargar el catálogo. Estado ${respuesta.status}.`);
+    }
+
+    const datos = await respuesta.json();
+    validarCatalogo(datos);
+
+    estado.categorias = datos.categorias;
+    estado.servicios = datos.servicios;
+    renderizarCategorias();
+    elementos.categorySection.hidden = false;
+    cargaCorrecta = true;
+  } catch (error) {
+    elementos.errorState.hidden = false;
+  } finally {
+    estado.cargando = false;
+    elementos.loadingState.hidden = true;
+  }
+
+  if (cargaCorrecta) {
+    await hidratarEstadoPersistido();
+    requestAnimationFrame(() => actualizarCarouselCategorias(false));
   }
 }
 
@@ -181,38 +249,46 @@ function renderizarCategorias() {
         role="listitem"
         aria-label="${escaparHTML(nombre)}"
       >
-        <div class="category-card">
-          <span class="category-icon">${obtenerIconoCategoria(icono)}</span>
-          <div class="category-copy">
-            <h2>${escaparHTML(nombre)}</h2>
-            <p>${escaparHTML(descripcion)}</p>
+        <div class="category-card-shell">
+          <div class="category-card-content">
+            <span class="category-icon">${obtenerIconoCategoria(icono)}</span>
+            <div class="category-copy">
+              <strong>${escaparHTML(nombre)}</strong>
+              <span>${escaparHTML(descripcion)}</span>
+            </div>
+            <button
+              class="category-explore-button"
+              type="button"
+              data-action="open-category"
+              data-category-id="${id}"
+              aria-label="Explorar servicios de ${escaparHTML(nombre)}"
+            >
+              <span>Explorar</span>
+              <span class="category-explore-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7"/></svg>
+              </span>
+            </button>
           </div>
-          <button
-            class="category-explore"
-            type="button"
-            data-action="open-category"
-            data-category-id="${id}"
-          >
-            Explorar
-          </button>
         </div>
       </article>
     `)
     .join("");
 
   estado.carouselPosicion = 0;
+  elementos.categoryRail.min = "0";
   elementos.categoryRail.max = String(Math.max(0, estado.categorias.length - 1));
+  elementos.categoryRail.step = "0.01";
   elementos.categoryRail.value = "0";
-  actualizarCarousel(false);
+  actualizarCarouselCategorias(false);
 }
 
-function normalizarPosicion(posicion) {
+function normalizarPosicionCarousel(posicion) {
   const total = estado.categorias.length;
   return total ? ((posicion % total) + total) % total : 0;
 }
 
-function obtenerDiferenciaCircular(indice, posicion, total) {
-  let diferencia = indice - normalizarPosicion(posicion);
+function diferenciaCircular(indice, posicion, total) {
+  let diferencia = indice - normalizarPosicionCarousel(posicion);
   const mitad = total / 2;
 
   if (diferencia > mitad) {
@@ -226,7 +302,7 @@ function obtenerDiferenciaCircular(indice, posicion, total) {
   return diferencia;
 }
 
-function actualizarCarousel(animar = true) {
+function actualizarCarouselCategorias(animar = true) {
   const tarjetas = [...elementos.categoryGrid.querySelectorAll(".category-stage")];
   const total = tarjetas.length;
 
@@ -239,7 +315,7 @@ function actualizarCarousel(animar = true) {
   const radioX = Math.min(455, Math.max(260, ancho * 0.39));
 
   tarjetas.forEach((tarjeta, indice) => {
-    const diferencia = obtenerDiferenciaCircular(indice, estado.carouselPosicion, total);
+    const diferencia = diferenciaCircular(indice, estado.carouselPosicion, total);
     const angulo = diferencia * ((Math.PI * 2) / total);
     const coseno = Math.cos(angulo);
     const seno = Math.sin(angulo);
@@ -248,6 +324,7 @@ function actualizarCarousel(animar = true) {
     const opacidad = 0.78 + ((coseno + 1) / 2) * 0.22;
     const desplazamientoX = seno * radioX;
     const rotacion = -seno * 15;
+    const profundidadBlur = Math.max(0, (1 - ((coseno + 1) / 2)) * 0.9);
     const activa = Math.abs(diferencia) < 0.42;
 
     tarjeta.style.setProperty("--carousel-x", `${desplazamientoX}px`);
@@ -256,91 +333,197 @@ function actualizarCarousel(animar = true) {
     tarjeta.style.setProperty("--carousel-rotate", `${rotacion.toFixed(2)}deg`);
     tarjeta.style.setProperty("--carousel-opacity", opacidad.toFixed(3));
     tarjeta.style.setProperty("--carousel-zindex", String(Math.round((coseno + 1) * 50)));
+    tarjeta.style.setProperty("--depth-blur", `${profundidadBlur.toFixed(2)}px`);
     tarjeta.classList.toggle("is-active", activa);
     tarjeta.setAttribute("aria-current", activa ? "true" : "false");
     tarjeta.tabIndex = activa ? 0 : -1;
   });
 
   if (!estado.carouselArrastrando) {
-    elementos.categoryRail.value = String(normalizarPosicion(Math.round(estado.carouselPosicion)));
+    elementos.categoryRail.value = String(
+      normalizarPosicionCarousel(Math.round(estado.carouselPosicion))
+    );
   }
 }
 
-function moverCarouselHacia(indice) {
+function moverCarouselHaciaIndice(indice) {
   const total = estado.categorias.length;
 
   if (!total) {
     return;
   }
 
-  const posicionActual = normalizarPosicion(estado.carouselPosicion);
-  let diferencia = indice - posicionActual;
+  const posicionActual = normalizarPosicionCarousel(estado.carouselPosicion);
+  let delta = indice - posicionActual;
   const mitad = total / 2;
 
-  if (diferencia > mitad) {
-    diferencia -= total;
+  if (delta > mitad) {
+    delta -= total;
   }
 
-  if (diferencia < -mitad) {
-    diferencia += total;
+  if (delta < -mitad) {
+    delta += total;
   }
 
-  estado.carouselPosicion += diferencia;
-  actualizarCarousel(true);
+  estado.carouselPosicion += delta;
+  actualizarCarouselCategorias(true);
 }
 
-function abrirCategoria(categoriaId) {
-  const categoria = estado.categorias.find(({ id }) => id === categoriaId);
-
-  if (!categoria) {
+function iniciarArrastreCategorias(evento) {
+  if (evento.button !== undefined && evento.button !== 0) {
     return;
   }
 
-  estado.categoriaActiva = categoriaId;
-  elementos.serviceModalTitle.textContent = categoria.nombre;
-  elementos.serviceModalDescription.textContent = categoria.descripcion;
-  renderizarServiciosCategoria();
-  abrirCapa(elementos.serviceModal, elementos.btnCloseServiceModal);
+  if (evento.target.closest(".category-explore-button")) {
+    return;
+  }
+
+  estado.carouselSeMovio = false;
+  estado.carouselPointerX = evento.clientX;
+  estado.carouselInicio = estado.carouselPosicion;
+  estado.carouselArrastrando = true;
+  elementos.categoryGrid.classList.add("is-dragging");
+  elementos.categoryGrid.setPointerCapture?.(evento.pointerId);
 }
 
-function renderizarServiciosCategoria() {
-  const servicios = estado.servicios.filter(
-    ({ categoriaId }) => categoriaId === estado.categoriaActiva
-  );
+function moverArrastreCategorias(evento) {
+  if (!estado.carouselArrastrando) {
+    return;
+  }
 
-  elementos.serviceModalList.innerHTML = servicios.map(renderizarServicio).join("");
+  const desplazamiento = evento.clientX - estado.carouselPointerX;
+
+  if (Math.abs(desplazamiento) > 6) {
+    estado.carouselSeMovio = true;
+  }
+
+  estado.carouselPosicion = estado.carouselInicio - desplazamiento / 225;
+  elementos.categoryRail.value = String(normalizarPosicionCarousel(estado.carouselPosicion));
+  actualizarCarouselCategorias(false);
 }
 
-function renderizarServicio(servicio) {
-  const { id, nombre, descripcion, precio, modalidad, unidad } = servicio;
-  const seleccionado = servicioSeleccionado(id);
-  const precioTexto = modalidad === "mensual" && unidad
-    ? `${formatearMoneda(precio)} / ${unidad}`
-    : `Desde ${formatearMoneda(precio)}`;
+function terminarArrastreCategorias(evento) {
+  if (!estado.carouselArrastrando) {
+    return;
+  }
 
-  return `
-    <article class="service-card" data-service-id="${id}">
-      <div class="service-card-copy">
-        <h3>${escaparHTML(nombre)}</h3>
-        <p>${escaparHTML(descripcion)}</p>
-      </div>
-      <div class="service-card-bottom">
-        <div class="service-price">
-          <span>${modalidad === "mensual" ? "Valor" : "Estimación base"}</span>
-          <strong>${precioTexto}</strong>
-        </div>
-        <button
-          class="service-add ${seleccionado ? "is-added" : ""}"
-          type="button"
-          data-action="add-service"
-          data-service-id="${id}"
-          ${seleccionado ? "disabled" : ""}
-        >
-          ${seleccionado ? "Agregado" : "Agregar"}
-        </button>
-      </div>
-    </article>
-  `;
+  const desplazamiento = Math.abs(evento.clientX - estado.carouselPointerX);
+  estado.carouselArrastrando = false;
+  estado.carouselPosicion = Math.round(estado.carouselPosicion);
+  elementos.categoryGrid.classList.remove("is-dragging");
+
+  if (desplazamiento > 7 || estado.carouselSeMovio) {
+    estado.carouselBloquearClickHasta = Date.now() + 260;
+  }
+
+  elementos.categoryGrid.releasePointerCapture?.(evento.pointerId);
+  actualizarCarouselCategorias(true);
+}
+
+function sincronizarCarouselDesdeRail() {
+  estado.carouselArrastrando = true;
+  estado.carouselPosicion = Number(elementos.categoryRail.value);
+  actualizarCarouselCategorias(false);
+}
+
+function terminarControlRail() {
+  estado.carouselArrastrando = false;
+  estado.carouselPosicion = Math.round(Number(elementos.categoryRail.value));
+  actualizarCarouselCategorias(true);
+}
+
+async function hidratarEstadoPersistido() {
+  estado.ultimaCotizacion = CubiqsStorage.obtenerUltimaCotizacion();
+  actualizarBotonUltimaCotizacion();
+
+  if (CubiqsStorage.obtenerVista() === "confirmada" && estado.ultimaCotizacion) {
+    mostrarCotizacionFinal(estado.ultimaCotizacion);
+    return;
+  }
+
+  const borrador = CubiqsStorage.obtenerBorrador();
+
+  if (borrador?.items?.length) {
+    await preguntarRecuperacionBorrador(borrador);
+    return;
+  }
+
+  estado.cotizacion = normalizarBorrador(borrador || crearBorradorVacio());
+  actualizarInterfazCotizacion();
+}
+
+async function preguntarRecuperacionBorrador(borrador) {
+  const cantidad = borrador.items.length;
+  const resultado = await Swal.fire({
+    ...configuracionSweetAlert(),
+    title: "Cotización en progreso",
+    html: `Encontramos un borrador con <strong>${cantidad} ${cantidad === 1 ? "servicio seleccionado" : "servicios seleccionados"}</strong>.`,
+    showCancelButton: true,
+    confirmButtonText: "Continuar",
+    cancelButtonText: "Empezar de nuevo",
+    reverseButtons: true
+  });
+
+  if (resultado.isConfirmed) {
+    estado.cotizacion = normalizarBorrador(borrador);
+    mostrarToast("Borrador recuperado", "✓");
+  } else {
+    estado.cotizacion = crearBorradorVacio();
+    CubiqsStorage.eliminarBorrador();
+  }
+
+  CubiqsStorage.guardarVista("catalogo");
+  actualizarInterfazCotizacion();
+}
+
+function normalizarBorrador(borrador) {
+  const cliente = borrador?.cliente || {};
+  const items = Array.isArray(borrador?.items) ? borrador.items : [];
+
+  return {
+    items,
+    cliente: {
+      nombre: cliente.nombre || "",
+      empresa: cliente.empresa || "",
+      email: cliente.email || "",
+      plazo: cliente.plazo || "Sin fecha definida",
+      objetivo: cliente.objetivo || ""
+    },
+    actualizadoEn: borrador?.actualizadoEn || new Date().toISOString()
+  };
+}
+
+function persistirBorrador() {
+  estado.cotizacion.actualizadoEn = new Date().toISOString();
+
+  try {
+    if (estado.cotizacion.items.length === 0 && !tieneDatosCliente()) {
+      CubiqsStorage.eliminarBorrador();
+    } else {
+      CubiqsStorage.guardarBorrador(estado.cotizacion);
+    }
+
+    indicarAutoguardado();
+  } catch (error) {
+    mostrarToast("No pudimos guardar el borrador", "!");
+  }
+}
+
+function tieneDatosCliente() {
+  const { nombre, empresa, email, objetivo } = estado.cotizacion.cliente;
+  return Boolean(nombre || empresa || email || objetivo);
+}
+
+function indicarAutoguardado() {
+  if (!elementos.autosaveIndicator) {
+    return;
+  }
+
+  elementos.autosaveIndicator.textContent = "Guardado";
+
+  window.setTimeout(() => {
+    elementos.autosaveIndicator.textContent = "Guardado automático";
+  }, 1200);
 }
 
 function obtenerServicio(servicioId) {
@@ -362,57 +545,85 @@ function calcularTotal() {
   }, 0);
 }
 
-function guardarBorrador() {
-  if (estado.cotizacion.items.length === 0) {
-    CubiqsStorage.eliminarBorrador();
-    return;
-  }
-
-  CubiqsStorage.guardarBorrador(estado.cotizacion);
+function cantidadItems() {
+  return estado.cotizacion.items.length;
 }
 
-function recuperarBorrador() {
-  const borrador = CubiqsStorage.obtenerBorrador();
+function abrirCategoria(categoriaId) {
+  const categoria = estado.categorias.find(({ id }) => id === categoriaId);
 
-  if (!borrador?.items?.length) {
+  if (!categoria) {
     return;
   }
 
-  estado.cotizacion.items = borrador.items
-    .map(({ servicioId, cantidad }) => {
-      const servicio = obtenerServicio(servicioId);
+  estado.categoriaActiva = categoriaId;
+  elementos.serviceModalTitle.textContent = categoria.nombre;
+  elementos.serviceModalDescription.textContent = categoria.descripcion;
+  renderizarServiciosCategoria();
+  abrirCapa(elementos.serviceModal, elementos.btnCloseServiceModal);
+}
 
-      if (!servicio) {
-        return null;
-      }
+function renderizarServiciosCategoria() {
+  const servicios = estado.servicios.filter(({ categoriaId }) => categoriaId === estado.categoriaActiva);
+  elementos.serviceModal.classList.toggle("is-compact", servicios.length <= 2);
+  elementos.serviceModalList.innerHTML = servicios.map(renderizarServicio).join("");
+}
 
-      const minimo = servicio.cantidadMinima || 1;
-      const maximo = servicio.cantidadMaxima || minimo;
-      const cantidadValida = servicio.cantidadEditable
-        ? Math.min(maximo, Math.max(minimo, Number(cantidad) || minimo))
-        : minimo;
+function renderizarServicio(servicio) {
+  const {
+    id,
+    nombre,
+    descripcion,
+    precio,
+    modalidad,
+    unidad,
+    cantidadEditable
+  } = servicio;
 
-      return {
-        servicioId: servicio.id,
-        cantidad: cantidadValida
-      };
-    })
-    .filter(Boolean);
+  const seleccionado = servicioSeleccionado(id);
+  const item = obtenerItemCotizacion(id);
+  const detallePrecio = modalidad === "mensual" && unidad
+    ? `${formatearMoneda(precio)} / ${unidad}`
+    : `Desde ${formatearMoneda(precio)}`;
 
-  const cliente = borrador.cliente || {};
-  estado.cotizacion.cliente = {
-    nombre: cliente.nombre || "",
-    empresa: cliente.empresa || "",
-    email: cliente.email || "",
-    plazo: cliente.plazo || "Sin fecha definida",
-    objetivo: cliente.objetivo || ""
-  };
+  return `
+    <article class="service-card" data-service-id="${id}">
+      <div class="service-card-main">
+        <div>
+          <h3>${escaparHTML(nombre)}</h3>
+          <p>${escaparHTML(descripcion)}</p>
+        </div>
+        <div class="service-card-bottom">
+          <div class="service-price-block">
+            <span>${modalidad === "mensual" ? "Valor" : "Estimación base"}</span>
+            <strong>${detallePrecio}</strong>
+          </div>
+          <button
+            class="service-add-button ${seleccionado ? "is-added" : ""}"
+            type="button"
+            data-action="add-service"
+            data-service-id="${id}"
+            ${seleccionado ? "disabled" : ""}
+          >
+            <span>${seleccionado ? "Agregado" : "Agregar"}</span>
+            <span aria-hidden="true">${seleccionado ? "✓" : "+"}</span>
+          </button>
+        </div>
+      </div>
+      ${cantidadEditable && seleccionado ? `
+        <div class="service-selected-note">
+          <span>Configurado por ${item?.cantidad || 1} ${pluralUnidad(unidad, item?.cantidad || 1)}</span>
+          <span>Podés modificarlo desde tu cotización.</span>
+        </div>
+      ` : ""}
+    </article>
+  `;
 }
 
 function agregarServicio(servicioId) {
   const servicio = obtenerServicio(servicioId);
 
-  if (!servicio || servicioSeleccionado(servicioId)) {
+  if (!servicio || servicioSeleccionado(servicio.id)) {
     return;
   }
 
@@ -421,18 +632,21 @@ function agregarServicio(servicioId) {
     cantidad: servicio.cantidadMinima || 1
   });
 
-  guardarBorrador();
-  actualizarCotizacion();
+  persistirBorrador();
+  actualizarInterfazCotizacion();
   renderizarServiciosCategoria();
+  mostrarToast(`${servicio.nombre} agregado`, "✓");
 }
 
 function eliminarServicio(servicioId) {
+  const servicio = obtenerServicio(servicioId);
+
   estado.cotizacion.items = estado.cotizacion.items.filter(
     ({ servicioId: id }) => id !== Number(servicioId)
   );
 
-  guardarBorrador();
-  actualizarCotizacion();
+  persistirBorrador();
+  actualizarInterfazCotizacion();
 
   if (estado.categoriaActiva) {
     renderizarServiciosCategoria();
@@ -445,6 +659,8 @@ function eliminarServicio(servicioId) {
       renderizarRevision();
     }
   }
+
+  mostrarToast(`${servicio?.nombre || "Servicio"} eliminado`, "×");
 }
 
 function modificarCantidad(servicioId, cambio) {
@@ -460,46 +676,21 @@ function modificarCantidad(servicioId, cambio) {
   const nuevaCantidad = item.cantidad + cambio;
 
   if (nuevaCantidad < minimo || nuevaCantidad > maximo) {
+    mostrarToast(`La cantidad permitida es de ${minimo} a ${maximo}`, "i");
     return;
   }
 
   item.cantidad = nuevaCantidad;
-  guardarBorrador();
-  actualizarCotizacion();
+  persistirBorrador();
+  actualizarInterfazCotizacion();
+
+  if (!elementos.reviewView.hidden) {
+    renderizarRevision();
+  }
 }
 
-async function vaciarCotizacion() {
-  if (estado.cotizacion.items.length === 0) {
-    return;
-  }
-
-  const resultado = await Swal.fire({
-    title: "¿Vaciar cotización?",
-    text: "Se eliminarán todos los servicios del borrador actual.",
-    showCancelButton: true,
-    confirmButtonText: "Vaciar",
-    cancelButtonText: "Cancelar",
-    reverseButtons: true
-  });
-
-  if (!resultado.isConfirmed) {
-    return;
-  }
-
-  estado.cotizacion = crearCotizacionVacia();
-  CubiqsStorage.eliminarBorrador();
-  actualizarCotizacion();
-
-  if (estado.categoriaActiva) {
-    renderizarServiciosCategoria();
-  }
-
-  cerrarDrawer();
-  mostrarToast("Cotización vaciada");
-}
-
-function actualizarCotizacion() {
-  const cantidad = estado.cotizacion.items.length;
+function actualizarInterfazCotizacion() {
+  const cantidad = cantidadItems();
   const total = calcularTotal();
 
   elementos.headerQuoteCount.textContent = cantidad;
@@ -507,7 +698,9 @@ function actualizarCotizacion() {
   elementos.fabTotal.textContent = formatearMoneda(total);
   elementos.drawerCount.textContent = `${cantidad} ${cantidad === 1 ? "servicio seleccionado" : "servicios seleccionados"}`;
   elementos.drawerTotal.textContent = formatearMoneda(total);
-  elementos.quoteFab.hidden = cantidad === 0 || !elementos.reviewView.hidden;
+
+  const catalogoActivo = elementos.catalogView.classList.contains("view-active") && !elementos.catalogView.hidden;
+  elementos.quoteFab.hidden = cantidad === 0 || !catalogoActivo;
   elementos.quoteEmpty.hidden = cantidad > 0;
   elementos.quoteItems.hidden = cantidad === 0;
   elementos.quoteFooter.hidden = cantidad === 0;
@@ -525,21 +718,22 @@ function renderizarItemsCotizacion() {
       }
 
       const subtotal = servicio.precio * cantidad;
+      const unidad = servicio.unidad || "unidad";
 
       return `
         <article class="quote-item" data-service-id="${servicio.id}">
           <div class="quote-item-top">
             <div>
               <h3>${escaparHTML(servicio.nombre)}</h3>
-              <p>${servicio.modalidad === "mensual" ? `${formatearMoneda(servicio.precio)} / ${servicio.unidad}` : "Proyecto"}</p>
+              <p>${servicio.modalidad === "mensual" ? `${formatearMoneda(servicio.precio)} / ${unidad}` : "Proyecto"}</p>
             </div>
-            <button class="remove-item" type="button" data-action="remove-service" data-service-id="${servicio.id}" aria-label="Eliminar ${escaparHTML(servicio.nombre)}">×</button>
+            <button class="remove-item-button" type="button" data-action="remove-service" data-service-id="${servicio.id}" aria-label="Eliminar ${escaparHTML(servicio.nombre)}">×</button>
           </div>
           <div class="quote-item-bottom">
             ${servicio.cantidadEditable ? `
               <div class="quantity-stepper" aria-label="Cantidad de ${escaparHTML(servicio.nombre)}">
                 <button type="button" data-action="decrease" data-service-id="${servicio.id}" aria-label="Reducir cantidad">−</button>
-                <span>${cantidad} ${pluralUnidad(servicio.unidad, cantidad)}</span>
+                <span class="quantity-value">${cantidad}</span>
                 <button type="button" data-action="increase" data-service-id="${servicio.id}" aria-label="Aumentar cantidad">+</button>
               </div>
             ` : `<span class="fixed-quantity">Cantidad fija</span>`}
@@ -551,26 +745,62 @@ function renderizarItemsCotizacion() {
     .join("");
 }
 
-function mostrarVistaRevision() {
+async function vaciarCotizacion() {
   if (estado.cotizacion.items.length === 0) {
     return;
   }
 
+  const resultado = await Swal.fire({
+    ...configuracionSweetAlert(),
+    title: "¿Vaciar cotización?",
+    text: "Se eliminarán todos los servicios del borrador actual.",
+    showCancelButton: true,
+    confirmButtonText: "Vaciar",
+    cancelButtonText: "Cancelar",
+    reverseButtons: true
+  });
+
+  if (!resultado.isConfirmed) {
+    return;
+  }
+
+  estado.cotizacion = crearBorradorVacio();
+  CubiqsStorage.eliminarBorrador();
+  actualizarInterfazCotizacion();
   cerrarDrawer();
-  elementos.catalogView.hidden = true;
-  elementos.reviewView.hidden = false;
-  elementos.successView.hidden = true;
-  elementos.quoteFab.hidden = true;
-  renderizarRevision();
-  cargarFormularioCliente();
-  window.scrollTo({ top: 0, behavior: "smooth" });
+  mostrarToast("Cotización vaciada", "✓");
 }
 
 function mostrarVistaCatalogo() {
+  cerrarTodasLasCapas();
+  elementos.catalogView.hidden = false;
   elementos.reviewView.hidden = true;
   elementos.successView.hidden = true;
-  elementos.catalogView.hidden = false;
-  actualizarCotizacion();
+  elementos.catalogView.classList.add("view-active");
+  elementos.reviewView.classList.remove("view-active");
+  elementos.successView.classList.remove("view-active");
+  CubiqsStorage.guardarVista("catalogo");
+  actualizarInterfazCotizacion();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function mostrarVistaRevision() {
+  if (estado.cotizacion.items.length === 0) {
+    mostrarToast("Agregá al menos un servicio", "i");
+    return;
+  }
+
+  cerrarTodasLasCapas();
+  elementos.catalogView.hidden = true;
+  elementos.reviewView.hidden = false;
+  elementos.successView.hidden = true;
+  elementos.catalogView.classList.remove("view-active");
+  elementos.reviewView.classList.add("view-active");
+  elementos.successView.classList.remove("view-active");
+  elementos.quoteFab.hidden = true;
+  renderizarRevision();
+  cargarFormularioDesdeEstado();
+  CubiqsStorage.guardarVista("revision");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -587,7 +817,7 @@ function renderizarRevision() {
       }
 
       const subtotal = servicio.precio * cantidad;
-      const detalle = servicio.cantidadEditable
+      const cantidadDetalle = servicio.cantidadEditable
         ? `${cantidad} ${pluralUnidad(servicio.unidad, cantidad)} × ${formatearMoneda(servicio.precio)}`
         : "Proyecto";
 
@@ -595,7 +825,7 @@ function renderizarRevision() {
         <article class="review-item">
           <div>
             <h3>${escaparHTML(servicio.nombre)}</h3>
-            <p>${detalle}</p>
+            <p>${cantidadDetalle}</p>
           </div>
           <div class="review-item-actions">
             <strong>${formatearMoneda(subtotal)}</strong>
@@ -607,17 +837,54 @@ function renderizarRevision() {
     .join("");
 }
 
-function cargarFormularioCliente() {
+function establecerPlazoSeleccionado(valor, notificar = false) {
+  const valorSeguro = valor || "Sin fecha definida";
+  elementos.clientTimeline.value = valorSeguro;
+  elementos.timelineSelectValue.textContent = valorSeguro;
+
+  elementos.timelineSelectMenu
+    .querySelectorAll(".custom-select-option")
+    .forEach((opcion) => {
+      const seleccionada = opcion.dataset.value === valorSeguro;
+      opcion.classList.toggle("is-selected", seleccionada);
+      opcion.setAttribute("aria-selected", String(seleccionada));
+    });
+
+  if (notificar) {
+    elementos.clientTimeline.dispatchEvent(new Event("input", { bubbles: true }));
+    elementos.clientTimeline.dispatchEvent(new Event("change", { bubbles: true }));
+  }
+}
+
+function abrirSelectorPlazo() {
+  elementos.timelineSelectMenu.hidden = false;
+  elementos.timelineSelect.classList.add("is-open");
+  elementos.timelineSelectTrigger.setAttribute("aria-expanded", "true");
+}
+
+function cerrarSelectorPlazo() {
+  elementos.timelineSelect.classList.remove("is-open");
+  elementos.timelineSelectTrigger.setAttribute("aria-expanded", "false");
+  elementos.timelineSelectMenu.hidden = true;
+}
+
+function alternarSelectorPlazo() {
+  elementos.timelineSelect.classList.contains("is-open")
+    ? cerrarSelectorPlazo()
+    : abrirSelectorPlazo();
+}
+
+function cargarFormularioDesdeEstado() {
   const { nombre, empresa, email, plazo, objetivo } = estado.cotizacion.cliente;
   elementos.clientName.value = nombre;
   elementos.clientCompany.value = empresa;
   elementos.clientEmail.value = email;
-  elementos.clientTimeline.value = plazo || "Sin fecha definida";
+  establecerPlazoSeleccionado(plazo || "Sin fecha definida");
   elementos.clientObjective.value = objetivo;
   actualizarContadorObjetivo();
 }
 
-function guardarCliente() {
+function guardarClienteDesdeFormulario() {
   estado.cotizacion.cliente = {
     nombre: elementos.clientName.value.trim(),
     empresa: elementos.clientCompany.value.trim(),
@@ -626,63 +893,65 @@ function guardarCliente() {
     objetivo: elementos.clientObjective.value.trim()
   };
 
-  guardarBorrador();
-  elementos.autosaveIndicator.textContent = "Guardado";
-
-  window.setTimeout(() => {
-    elementos.autosaveIndicator.textContent = "Guardado automático";
-  }, 900);
+  persistirBorrador();
 }
 
 function actualizarContadorObjetivo() {
   elementos.objectiveCount.textContent = `${elementos.clientObjective.value.length} / 500`;
 }
 
-function validarCampoCliente(campo) {
-  const error = document.querySelector(`#error-${campo.id}`);
+function validarFormularioCliente() {
+  limpiarErroresFormulario();
 
-  if (!error) {
-    return true;
+  const nombre = elementos.clientName.value.trim();
+  const email = elementos.clientEmail.value.trim();
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  let valido = true;
+
+  if (nombre.length < 3) {
+    mostrarErrorCampo("client-name", "Ingresá tu nombre y apellido.");
+    valido = false;
   }
 
-  let mensaje = "";
-
-  if (campo === elementos.clientName && campo.value.trim().length < 3) {
-    mensaje = "Ingresá tu nombre y apellido.";
+  if (!emailValido) {
+    mostrarErrorCampo("client-email", "Ingresá un email válido.");
+    valido = false;
   }
 
-  if (campo === elementos.clientEmail) {
-    const email = campo.value.trim();
-    const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
-
-    if (!emailValido) {
-      mensaje = "Ingresá un email válido.";
-    }
-  }
-
-  campo.classList.toggle("has-error", Boolean(mensaje));
-  campo.setAttribute("aria-invalid", String(Boolean(mensaje)));
-  error.textContent = mensaje;
-  return !mensaje;
+  return valido;
 }
 
-function validarFormularioCliente() {
-  const nombreValido = validarCampoCliente(elementos.clientName);
-  const emailValido = validarCampoCliente(elementos.clientEmail);
-  return nombreValido && emailValido;
+function mostrarErrorCampo(campoId, mensaje) {
+  const campo = document.querySelector(`#${campoId}`);
+  const error = document.querySelector(`#error-${campoId}`);
+  campo.setAttribute("aria-invalid", "true");
+  campo.classList.add("has-error");
+  error.textContent = mensaje;
+}
+
+function limpiarErroresFormulario() {
+  elementos.clientForm.querySelectorAll("[aria-invalid='true']").forEach((campo) => {
+    campo.removeAttribute("aria-invalid");
+    campo.classList.remove("has-error");
+  });
+
+  elementos.clientForm.querySelectorAll(".field-error").forEach((error) => {
+    error.textContent = "";
+  });
 }
 
 async function confirmarCotizacion() {
-  guardarCliente();
+  guardarClienteDesdeFormulario();
 
   if (!validarFormularioCliente()) {
-    mostrarToast("Revisá los datos indicados");
+    mostrarToast("Revisá los datos indicados", "!");
     return;
   }
 
-  const cantidad = estado.cotizacion.items.length;
   const total = calcularTotal();
+  const cantidad = estado.cotizacion.items.length;
   const resultado = await Swal.fire({
+    ...configuracionSweetAlert(),
     title: "Confirmar cotización",
     html: `Vas a generar una cotización con <strong>${cantidad} ${cantidad === 1 ? "servicio" : "servicios"}</strong> por una estimación de <strong>${formatearMoneda(total)}</strong>.`,
     showCancelButton: true,
@@ -696,13 +965,23 @@ async function confirmarCotizacion() {
   }
 
   const cotizacionFinal = construirCotizacionFinal();
-  CubiqsStorage.guardarUltimaCotizacion(cotizacionFinal);
-  CubiqsStorage.eliminarBorrador();
-  estado.ultimaCotizacion = cotizacionFinal;
-  estado.cotizacion = crearCotizacionVacia();
-  actualizarBotonUltimaCotizacion();
-  actualizarCotizacion();
-  mostrarCotizacionFinal(cotizacionFinal);
+
+  try {
+    CubiqsStorage.guardarUltimaCotizacion(cotizacionFinal);
+    CubiqsStorage.eliminarBorrador();
+    CubiqsStorage.guardarVista("confirmada");
+    estado.ultimaCotizacion = cotizacionFinal;
+    estado.cotizacion = crearBorradorVacio();
+    actualizarBotonUltimaCotizacion();
+    mostrarCotizacionFinal(cotizacionFinal);
+  } catch (error) {
+    await Swal.fire({
+      ...configuracionSweetAlert(),
+      title: "No pudimos guardar la cotización",
+      text: "La información está lista, pero el navegador no permitió almacenarla. Intentá nuevamente.",
+      confirmButtonText: "Entendido"
+    });
+  }
 }
 
 function construirCotizacionFinal() {
@@ -711,25 +990,24 @@ function construirCotizacionFinal() {
     .map(({ servicioId, cantidad }) => {
       const servicio = obtenerServicio(servicioId);
 
-      if (!servicio) {
-        return null;
-      }
-
-      return {
-        id: servicio.id,
-        nombre: servicio.nombre,
-        precio: servicio.precio,
-        cantidad,
-        unidad: servicio.unidad,
-        modalidad: servicio.modalidad,
-        subtotal: servicio.precio * cantidad
-      };
+      return servicio
+        ? {
+            id: servicio.id,
+            nombre: servicio.nombre,
+            precio: servicio.precio,
+            cantidad,
+            unidad: servicio.unidad,
+            modalidad: servicio.modalidad,
+            subtotal: servicio.precio * cantidad
+          }
+        : null;
     })
     .filter(Boolean);
 
   return {
     id: generarIdCotizacion(fecha),
     fecha: fecha.toISOString(),
+    estado: "confirmada",
     cliente: { ...estado.cotizacion.cliente },
     servicios,
     total: servicios.reduce((suma, { subtotal }) => suma + subtotal, 0)
@@ -747,11 +1025,13 @@ function mostrarCotizacionFinal(cotizacion) {
     return;
   }
 
-  cerrarModalServiciosSiAbierto();
-  cerrarDrawerSiAbierto();
+  cerrarTodasLasCapas();
   elementos.catalogView.hidden = true;
   elementos.reviewView.hidden = true;
   elementos.successView.hidden = false;
+  elementos.catalogView.classList.remove("view-active");
+  elementos.reviewView.classList.remove("view-active");
+  elementos.successView.classList.add("view-active");
   elementos.quoteFab.hidden = true;
 
   elementos.finalQuoteId.textContent = cotizacion.id;
@@ -796,6 +1076,7 @@ function mostrarCotizacionFinal(cotizacion) {
     })
     .join("");
 
+  CubiqsStorage.guardarVista("confirmada");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -817,16 +1098,19 @@ function construirResumenTexto(cotizacion) {
   return [
     `Cotización ${cotizacion.id}`,
     `Fecha: ${formatearFecha(cotizacion.fecha)}`,
+    "",
     `Nombre: ${nombre}`,
     empresa ? `Empresa: ${empresa}` : "",
     `Email: ${email}`,
     `Momento estimado: ${plazo || "Sin fecha definida"}`,
+    "",
     "Servicios:",
     servicios,
+    "",
     `Estimación total: ${formatearMoneda(cotizacion.total)}`,
-    objetivo ? `Objetivo del proyecto: ${objetivo}` : ""
+    objetivo ? `\nObjetivo del proyecto:\n${objetivo}` : ""
   ]
-    .filter(Boolean)
+    .filter((linea) => linea !== "")
     .join("\n");
 }
 
@@ -841,16 +1125,21 @@ function construirMensajeWhatsApp(cotizacion) {
     })
     .join("\n");
 
+  const encabezadoServicios = cotizacion.servicios.length === 1
+    ? "Estoy interesado en el siguiente servicio:"
+    : "Estoy interesado en los siguientes servicios:";
+
   return [
     `Hola, soy ${nombre}.`,
-    `Acabo de generar la cotización ${cotizacion.id} desde la web de Cubiqs.`,
     "",
-    cotizacion.servicios.length === 1 ? "Servicio seleccionado:" : "Servicios seleccionados:",
+    `Acabo de generar la cotización ${cotizacion.id} desde la web de Cubiqs y me gustaría conversar sobre los próximos pasos.`,
+    "",
+    encabezadoServicios,
     servicios,
     "",
     `Estimación generada: ${formatearMoneda(cotizacion.total)}`,
     `Momento estimado: ${plazo || "Sin fecha definida"}`,
-    objetivo ? `Objetivo: ${objetivo}` : "",
+    objetivo ? `\nObjetivo:\n${objetivo}` : "",
     "",
     "¿Podemos revisar el alcance con el equipo?"
   ]
@@ -864,7 +1153,8 @@ function abrirWhatsApp() {
   }
 
   const mensaje = construirMensajeWhatsApp(estado.ultimaCotizacion);
-  window.open(`https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(mensaje)}`, "_blank", "noopener,noreferrer");
+  const url = `https://wa.me/${NUMERO_WHATSAPP}?text=${encodeURIComponent(mensaje)}`;
+  window.open(url, "_blank", "noopener,noreferrer");
 }
 
 async function copiarResumen() {
@@ -874,14 +1164,15 @@ async function copiarResumen() {
 
   try {
     await navigator.clipboard.writeText(construirResumenTexto(estado.ultimaCotizacion));
-    mostrarToast("Resumen copiado");
-  } catch {
-    mostrarToast("No pudimos copiar el resumen");
+    mostrarToast("Resumen copiado", "✓");
+  } catch (error) {
+    mostrarToast("No pudimos copiar el resumen", "!");
   }
 }
 
 async function iniciarNuevaCotizacion() {
   const resultado = await Swal.fire({
+    ...configuracionSweetAlert(),
     title: "Nueva cotización",
     text: "La última cotización seguirá guardada y podrás consultarla desde el encabezado.",
     showCancelButton: true,
@@ -894,46 +1185,39 @@ async function iniciarNuevaCotizacion() {
     return;
   }
 
-  estado.cotizacion = crearCotizacionVacia();
-  CubiqsStorage.eliminarBorrador();
+  estado.cotizacion = crearBorradorVacio();
+  CubiqsStorage.vaciarEstadoTemporal();
+  CubiqsStorage.guardarVista("catalogo");
   mostrarVistaCatalogo();
 }
 
-function cerrarModalServiciosSiAbierto() {
-  if (elementos.serviceModal.classList.contains("is-open")) {
-    cerrarModalServicios();
-  }
-}
-
-function cerrarDrawerSiAbierto() {
-  if (elementos.quoteDrawer.classList.contains("is-open")) {
-    cerrarDrawer();
-  }
-}
-
-function abrirCapa(elemento, foco) {
-  elementos.modalOverlay.hidden = false;
-  elemento.hidden = false;
+function abrirCapa(elemento, elementoFoco) {
+  elementos.overlay.hidden = false;
 
   requestAnimationFrame(() => {
-    elementos.modalOverlay.classList.add("is-open");
+    elementos.overlay.classList.add("is-open");
     elemento.classList.add("is-open");
     elemento.setAttribute("aria-hidden", "false");
-    document.body.classList.add("modal-open");
-    foco?.focus();
+    document.body.classList.add("overlay-open");
+    elementoFoco?.focus();
   });
 }
 
 function cerrarCapa(elemento) {
   elemento.classList.remove("is-open");
   elemento.setAttribute("aria-hidden", "true");
-  elementos.modalOverlay.classList.remove("is-open");
-  document.body.classList.remove("modal-open");
 
-  window.setTimeout(() => {
-    elemento.hidden = true;
-    elementos.modalOverlay.hidden = true;
-  }, 220);
+  const algunaAbierta = elementos.serviceModal.classList.contains("is-open") ||
+    elementos.quoteDrawer.classList.contains("is-open");
+
+  if (!algunaAbierta) {
+    elementos.overlay.classList.remove("is-open");
+    document.body.classList.remove("overlay-open");
+
+    window.setTimeout(() => {
+      elementos.overlay.hidden = true;
+    }, 220);
+  }
 }
 
 function cerrarModalServicios() {
@@ -942,7 +1226,7 @@ function cerrarModalServicios() {
 }
 
 function abrirDrawer() {
-  actualizarCotizacion();
+  actualizarInterfazCotizacion();
   abrirCapa(elementos.quoteDrawer, elementos.btnCloseDrawer);
   elementos.btnHeaderQuote.setAttribute("aria-expanded", "true");
   elementos.quoteFab.setAttribute("aria-expanded", "true");
@@ -954,97 +1238,17 @@ function cerrarDrawer() {
   elementos.quoteFab.setAttribute("aria-expanded", "false");
 }
 
-function iniciarArrastre(evento) {
-  if (evento.button !== undefined && evento.button !== 0) {
-    return;
-  }
-
-  if (evento.target.closest(".category-explore")) {
-    return;
-  }
-
-  estado.carouselSeMovio = false;
-  estado.carouselPointerX = evento.clientX;
-  estado.carouselInicio = estado.carouselPosicion;
-  estado.carouselArrastrando = true;
-  elementos.categoryGrid.setPointerCapture?.(evento.pointerId);
-}
-
-function moverArrastre(evento) {
-  if (!estado.carouselArrastrando) {
-    return;
-  }
-
-  const desplazamiento = evento.clientX - estado.carouselPointerX;
-
-  if (Math.abs(desplazamiento) > 6) {
-    estado.carouselSeMovio = true;
-  }
-
-  estado.carouselPosicion = estado.carouselInicio - desplazamiento / 225;
-  elementos.categoryRail.value = String(normalizarPosicion(estado.carouselPosicion));
-  actualizarCarousel(false);
-}
-
-function terminarArrastre(evento) {
-  if (!estado.carouselArrastrando) {
-    return;
-  }
-
-  const desplazamiento = Math.abs(evento.clientX - estado.carouselPointerX);
-  estado.carouselArrastrando = false;
-  estado.carouselPosicion = Math.round(estado.carouselPosicion);
-
-  if (desplazamiento > 7 || estado.carouselSeMovio) {
-    estado.carouselBloquearClickHasta = Date.now() + 250;
-  }
-
-  elementos.categoryGrid.releasePointerCapture?.(evento.pointerId);
-  actualizarCarousel(true);
-}
-
-function sincronizarDesdeRail() {
-  estado.carouselArrastrando = true;
-  estado.carouselPosicion = Number(elementos.categoryRail.value);
-  actualizarCarousel(false);
-}
-
-function terminarRail() {
-  estado.carouselArrastrando = false;
-  estado.carouselPosicion = Math.round(Number(elementos.categoryRail.value));
-  actualizarCarousel(true);
-}
-
-async function cargarCatalogo() {
-  estado.cargando = true;
-  elementos.loadingState.hidden = false;
-  elementos.errorState.hidden = true;
-  elementos.categorySection.hidden = true;
-
-  try {
-    const respuesta = await fetch(RUTA_CATALOGO);
-
-    if (!respuesta.ok) {
-      throw new Error(`No se pudo cargar el catálogo. Estado ${respuesta.status}.`);
-    }
-
-    const datos = await respuesta.json();
-    validarCatalogo(datos);
-
-    estado.categorias = datos.categorias;
-    estado.servicios = datos.servicios;
-    estado.ultimaCotizacion = CubiqsStorage.obtenerUltimaCotizacion();
-    recuperarBorrador();
-    renderizarCategorias();
-    elementos.categorySection.hidden = false;
-    actualizarCotizacion();
-    actualizarBotonUltimaCotizacion();
-  } catch (error) {
-    elementos.errorState.hidden = false;
-  } finally {
-    estado.cargando = false;
-    elementos.loadingState.hidden = true;
-  }
+function cerrarTodasLasCapas() {
+  elementos.serviceModal.classList.remove("is-open");
+  elementos.quoteDrawer.classList.remove("is-open");
+  elementos.serviceModal.setAttribute("aria-hidden", "true");
+  elementos.quoteDrawer.setAttribute("aria-hidden", "true");
+  elementos.overlay.classList.remove("is-open");
+  elementos.overlay.hidden = true;
+  document.body.classList.remove("overlay-open");
+  elementos.btnHeaderQuote.setAttribute("aria-expanded", "false");
+  elementos.quoteFab.setAttribute("aria-expanded", "false");
+  estado.categoriaActiva = null;
 }
 
 function manejarAccionCotizacion(evento) {
@@ -1055,142 +1259,169 @@ function manejarAccionCotizacion(evento) {
   }
 
   const servicioId = Number(boton.dataset.serviceId);
+  const accion = boton.dataset.action;
 
-  if (boton.dataset.action === "remove-service" || boton.dataset.action === "remove-review-service") {
+  if (accion === "remove-service" || accion === "remove-review-service") {
     eliminarServicio(servicioId);
   }
 
-  if (boton.dataset.action === "increase") {
+  if (accion === "increase") {
     modificarCantidad(servicioId, 1);
   }
 
-  if (boton.dataset.action === "decrease") {
+  if (accion === "decrease") {
     modificarCantidad(servicioId, -1);
   }
 }
 
-elementos.categoryGrid.addEventListener("click", (evento) => {
-  const botonExplorar = evento.target.closest("[data-action='open-category']");
-  const tarjeta = evento.target.closest(".category-stage");
+function registrarEventos() {
+  elementos.categoryGrid.addEventListener("click", (evento) => {
+    const botonExplorar = evento.target.closest("[data-action='open-category']");
+    const tarjeta = evento.target.closest(".category-stage");
 
-  if (!tarjeta) {
-    return;
-  }
+    if (!tarjeta) {
+      return;
+    }
 
-  if (botonExplorar) {
-    abrirCategoria(botonExplorar.dataset.categoryId);
-    return;
-  }
+    if (botonExplorar) {
+      abrirCategoria(botonExplorar.dataset.categoryId);
+      return;
+    }
 
-  if (Date.now() < estado.carouselBloquearClickHasta) {
-    return;
-  }
+    if (Date.now() < estado.carouselBloquearClickHasta || estado.carouselSeMovio) {
+      return;
+    }
 
-  if (!tarjeta.classList.contains("is-active")) {
-    moverCarouselHacia(Number(tarjeta.dataset.categoryIndex));
-    return;
-  }
+    const indice = Number(tarjeta.dataset.categoryIndex);
 
-  abrirCategoria(tarjeta.dataset.categoryId);
-});
+    if (!tarjeta.classList.contains("is-active")) {
+      moverCarouselHaciaIndice(indice);
+      return;
+    }
 
-elementos.categoryGrid.addEventListener("keydown", (evento) => {
-  if (evento.key !== "Enter" && evento.key !== " ") {
-    return;
-  }
+    abrirCategoria(tarjeta.dataset.categoryId);
+  });
 
-  const tarjeta = evento.target.closest(".category-stage.is-active");
+  elementos.categoryGrid.addEventListener("keydown", (evento) => {
+    if (evento.key !== "Enter" && evento.key !== " ") {
+      return;
+    }
 
-  if (!tarjeta || evento.target.closest(".category-explore")) {
-    return;
-  }
+    const tarjeta = evento.target.closest(".category-stage.is-active");
 
-  evento.preventDefault();
-  abrirCategoria(tarjeta.dataset.categoryId);
-});
+    if (!tarjeta || evento.target.closest(".category-explore-button")) {
+      return;
+    }
 
-elementos.categoryGrid.addEventListener("pointerdown", iniciarArrastre);
-elementos.categoryGrid.addEventListener("pointermove", moverArrastre);
-elementos.categoryGrid.addEventListener("pointerup", terminarArrastre);
-elementos.categoryGrid.addEventListener("pointercancel", terminarArrastre);
-elementos.categoryRail.addEventListener("input", sincronizarDesdeRail);
-elementos.categoryRail.addEventListener("change", terminarRail);
-elementos.categoryRail.addEventListener("pointerup", terminarRail);
+    evento.preventDefault();
+    abrirCategoria(tarjeta.dataset.categoryId);
+  });
 
-elementos.serviceModalList.addEventListener("click", (evento) => {
-  const boton = evento.target.closest("[data-action='add-service']");
+  elementos.categoryGrid.addEventListener("pointerdown", iniciarArrastreCategorias);
+  elementos.categoryGrid.addEventListener("pointermove", moverArrastreCategorias);
+  elementos.categoryGrid.addEventListener("pointerup", terminarArrastreCategorias);
+  elementos.categoryGrid.addEventListener("pointercancel", terminarArrastreCategorias);
 
-  if (boton) {
-    agregarServicio(Number(boton.dataset.serviceId));
-  }
-});
+  elementos.categoryRail.addEventListener("input", sincronizarCarouselDesdeRail);
+  elementos.categoryRail.addEventListener("change", terminarControlRail);
+  elementos.categoryRail.addEventListener("pointerup", terminarControlRail);
 
-elementos.quoteItems.addEventListener("click", manejarAccionCotizacion);
-elementos.reviewItems.addEventListener("click", manejarAccionCotizacion);
-elementos.btnRetry.addEventListener("click", cargarCatalogo);
-elementos.btnCloseServiceModal.addEventListener("click", cerrarModalServicios);
-elementos.btnHeaderQuote.addEventListener("click", abrirDrawer);
-elementos.quoteFab.addEventListener("click", abrirDrawer);
-elementos.btnCloseDrawer.addEventListener("click", cerrarDrawer);
-elementos.btnReviewQuote.addEventListener("click", mostrarVistaRevision);
-elementos.btnBackCatalog.addEventListener("click", mostrarVistaCatalogo);
-elementos.btnClearQuote.addEventListener("click", vaciarCotizacion);
+  window.addEventListener("resize", () => actualizarCarouselCategorias(false));
 
-elementos.clientForm.addEventListener("input", (evento) => {
-  guardarCliente();
+  elementos.serviceModalList.addEventListener("click", (evento) => {
+    const boton = evento.target.closest("[data-action='add-service']");
+    if (boton) {
+      agregarServicio(Number(boton.dataset.serviceId));
+    }
+  });
 
-  if (evento.target === elementos.clientObjective) {
-    actualizarContadorObjetivo();
-  }
+  elementos.quoteItems.addEventListener("click", manejarAccionCotizacion);
+  elementos.reviewItems.addEventListener("click", manejarAccionCotizacion);
 
-  if (evento.target.classList.contains("has-error")) {
-    validarCampoCliente(evento.target);
-  }
-});
+  elementos.btnRetry.addEventListener("click", cargarCatalogo);
+  elementos.btnCloseServiceModal.addEventListener("click", cerrarModalServicios);
+  elementos.btnCloseDrawer.addEventListener("click", cerrarDrawer);
+  elementos.btnHeaderQuote.addEventListener("click", abrirDrawer);
+  elementos.quoteFab.addEventListener("click", abrirDrawer);
+  elementos.btnClearQuote.addEventListener("click", vaciarCotizacion);
+  elementos.btnReviewQuote.addEventListener("click", mostrarVistaRevision);
+  elementos.btnBackCatalog.addEventListener("click", mostrarVistaCatalogo);
+  elementos.btnWhatsapp.addEventListener("click", abrirWhatsApp);
+  elementos.btnCopySummary.addEventListener("click", copiarResumen);
+  elementos.btnNewQuote.addEventListener("click", iniciarNuevaCotizacion);
+  elementos.btnLastQuote.addEventListener("click", () => {
+    if (estado.ultimaCotizacion) {
+      mostrarCotizacionFinal(estado.ultimaCotizacion);
+    }
+  });
 
-elementos.clientForm.addEventListener("change", guardarCliente);
+  elementos.overlay.addEventListener("click", () => {
+    if (elementos.serviceModal.classList.contains("is-open")) {
+      cerrarModalServicios();
+    }
 
-elementos.clientForm.addEventListener("focusout", (evento) => {
-  if (evento.target === elementos.clientName || evento.target === elementos.clientEmail) {
-    validarCampoCliente(evento.target);
-  }
-});
+    if (elementos.quoteDrawer.classList.contains("is-open")) {
+      cerrarDrawer();
+    }
+  });
 
-elementos.clientForm.addEventListener("submit", (evento) => {
-  evento.preventDefault();
-  confirmarCotizacion();
-});
+  elementos.timelineSelectTrigger.addEventListener("click", alternarSelectorPlazo);
 
-elementos.btnWhatsapp.addEventListener("click", abrirWhatsApp);
-elementos.btnCopySummary.addEventListener("click", copiarResumen);
-elementos.btnNewQuote.addEventListener("click", iniciarNuevaCotizacion);
-elementos.btnLastQuote.addEventListener("click", () => mostrarCotizacionFinal(estado.ultimaCotizacion));
+  elementos.timelineSelectMenu.addEventListener("click", (evento) => {
+    const opcion = evento.target.closest(".custom-select-option");
 
-elementos.modalOverlay.addEventListener("click", () => {
-  if (elementos.serviceModal.classList.contains("is-open")) {
-    cerrarModalServicios();
-  }
+    if (!opcion) {
+      return;
+    }
 
-  if (elementos.quoteDrawer.classList.contains("is-open")) {
-    cerrarDrawer();
-  }
-});
+    establecerPlazoSeleccionado(opcion.dataset.value, true);
+    cerrarSelectorPlazo();
+    elementos.timelineSelectTrigger.focus();
+  });
 
-window.addEventListener("resize", () => actualizarCarousel(false));
+  document.addEventListener("click", (evento) => {
+    if (!elementos.timelineSelect.contains(evento.target)) {
+      cerrarSelectorPlazo();
+    }
+  });
 
-document.addEventListener("keydown", (evento) => {
-  if (evento.key !== "Escape") {
-    return;
-  }
+  elementos.clientForm.addEventListener("input", (evento) => {
+    guardarClienteDesdeFormulario();
 
-  if (elementos.serviceModal.classList.contains("is-open")) {
-    cerrarModalServicios();
-    return;
-  }
+    if (evento.target === elementos.clientObjective) {
+      actualizarContadorObjetivo();
+    }
+  });
 
-  if (elementos.quoteDrawer.classList.contains("is-open")) {
-    cerrarDrawer();
-  }
-});
+  elementos.clientForm.addEventListener("change", guardarClienteDesdeFormulario);
 
+  elementos.clientForm.addEventListener("submit", (evento) => {
+    evento.preventDefault();
+    confirmarCotizacion();
+  });
+
+  document.addEventListener("keydown", (evento) => {
+    if (evento.key !== "Escape") {
+      return;
+    }
+
+    if (elementos.timelineSelect.classList.contains("is-open")) {
+      cerrarSelectorPlazo();
+      elementos.timelineSelectTrigger.focus();
+      return;
+    }
+
+    if (elementos.serviceModal.classList.contains("is-open")) {
+      cerrarModalServicios();
+      return;
+    }
+
+    if (elementos.quoteDrawer.classList.contains("is-open")) {
+      cerrarDrawer();
+    }
+  });
+}
+
+renderizarSkeletons();
+registrarEventos();
 cargarCatalogo();

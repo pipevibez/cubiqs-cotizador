@@ -17,231 +17,331 @@
   <script src="js/app.js" defer></script>
 </head>
 <body>
-  <header class="site-header">
-    <a class="brand" href="index.html" aria-label="Cubiqs, volver al inicio">
-      <span class="brand-mark">
-        <img src="assets/cubiqs-logo-positivo.png" alt="" />
-      </span>
-      <span class="brand-name">Cubiqs</span>
-    </a>
+  <svg class="svg-defs" aria-hidden="true" width="0" height="0">
+    <defs>
+      <filter id="glass-distortion" x="0%" y="0%" width="100%" height="100%">
+        <feTurbulence
+          type="fractalNoise"
+          baseFrequency="0.012 0.012"
+          numOctaves="2"
+          seed="92"
+          result="noise"
+        />
+        <feGaussianBlur
+          in="noise"
+          stdDeviation="2"
+          result="blurred"
+        />
+        <feDisplacementMap
+          in="SourceGraphic"
+          in2="blurred"
+          scale="85"
+          xChannelSelector="R"
+          yChannelSelector="G"
+        />
+      </filter>
+    </defs>
+  </svg>
 
-    <div class="header-actions">
-      <button id="btn-ultima-cotizacion" class="last-quote-button" type="button" hidden>Última cotización</button>
-      <button id="btn-header-cotizacion" class="quote-header-button" type="button" aria-controls="quote-drawer" aria-expanded="false">
-        <span>Tu cotización</span>
-        <span id="header-quote-count" class="quote-count">0</span>
-      </button>
+  <div class="ambient-light ambient-light-one" aria-hidden="true"></div>
+  <div class="ambient-light ambient-light-two" aria-hidden="true"></div>
+
+  <header class="site-header glass-shell">
+    <span class="glass-optics" aria-hidden="true"></span>
+    <span class="glass-tint" aria-hidden="true"></span>
+    <div class="glass-content site-header-content">
+      <a href="index.html" class="brand" aria-label="Cubiqs, volver al inicio">
+        <span class="brand-mark">
+          <img src="assets/cubiqs-logo-positivo.png" alt="" />
+        </span>
+        <span class="brand-name">Cubiqs</span>
+      </a>
+
+      <nav class="header-actions" aria-label="Acciones de cotización">
+        <button id="btn-ultima-cotizacion" class="header-link" type="button" hidden>
+          Última cotización
+        </button>
+        <button id="btn-header-cotizacion" class="material-button compact-button" type="button" aria-controls="quote-drawer" aria-expanded="false">
+          <span class="material-button-label">Tu cotización</span>
+          <span id="header-quote-count" class="material-button-icon count-bubble">0</span>
+        </button>
+      </nav>
     </div>
   </header>
 
   <main class="app-shell">
-    <section id="catalog-view" class="catalog-view">
-      <section class="hero" aria-labelledby="catalog-title">
+    <section id="catalog-view" class="view view-active" aria-labelledby="catalog-title">
+      <div class="hero-copy">
         <h1 id="catalog-title">Armá tu cotización</h1>
-        <p>Elegí un rubro y explorá los servicios que mejor se adapten a tu proyecto.</p>
-      </section>
+        <p>Elegí un rubro y explorá los servicios que mejor se adapten a tu proyecto.<br />Sumá solo lo que realmente necesitás.</p>
+      </div>
 
-      <section class="catalog-section" aria-label="Rubros de servicios">
-        <div id="loading-state" class="status-card" aria-live="polite">
-          <span class="loading-dot" aria-hidden="true"></span>
-          <span>Preparando servicios...</span>
+      <div id="catalog-status" class="status-region" aria-live="polite">
+        <div id="loading-state" class="loading-state">
+          <div class="loading-copy">
+            <span class="loading-dot"></span>
+            <span>Preparando servicios...</span>
+          </div>
+          <div id="category-skeletons" class="skeleton-carousel" aria-hidden="true"></div>
         </div>
 
-        <div id="error-state" class="status-card error-card" hidden>
+        <div id="error-state" class="error-state neumorphic-panel" hidden>
           <div>
             <h2>No pudimos cargar los servicios</h2>
             <p>Revisá la conexión e intentá nuevamente.</p>
           </div>
-          <button id="btn-retry" type="button">Reintentar</button>
+          <button id="btn-retry" class="material-button" type="button">
+            <span class="material-button-label">Reintentar</span>
+            <span class="material-button-icon" aria-hidden="true">↻</span>
+          </button>
+        </div>
+      </div>
+
+      <section id="category-section" class="category-section" hidden>
+        <div class="category-carousel-shell">
+          <div id="category-grid" class="category-carousel" role="list" aria-label="Rubros de servicios"></div>
         </div>
 
-        <div id="category-section" class="category-section" hidden>
-          <div id="category-grid" class="category-carousel" role="list" aria-label="Rubros disponibles"></div>
+        <div class="category-carousel-controls">
           <div class="category-rail-shell">
-            <input
-              id="category-rail"
-              class="category-rail"
-              type="range"
-              min="0"
-              max="4"
-              step="0.01"
-              value="0"
-              aria-label="Mover carrusel de rubros"
-            />
+            <input id="category-rail" class="category-rail" type="range" min="0" max="4" step="0.01" value="0" aria-label="Mover carrusel de rubros" />
           </div>
         </div>
       </section>
     </section>
 
-    <section id="review-view" class="review-view" hidden aria-labelledby="review-title">
-      <button id="btn-back-catalog" class="back-button" type="button">← Volver al catálogo</button>
+    <section id="review-view" class="view review-view" hidden aria-labelledby="review-title">
+      <div class="review-topbar">
+        <button id="btn-back-catalog" class="material-button material-button-back" type="button">
+          <span class="material-button-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M15 5 8 12l7 7" /></svg>
+          </span>
+          <span class="material-button-label">Volver al catálogo</span>
+        </button>
+      </div>
 
       <div class="review-heading">
         <h1 id="review-title">Revisá tu cotización</h1>
-        <p>Revisá los servicios seleccionados y completá tus datos de contacto.</p>
+        <p>Confirmá los servicios y completá tus datos antes de generar la cotización.</p>
       </div>
 
       <div class="review-layout">
-        <section class="review-panel" aria-labelledby="review-services-title">
-          <div class="review-panel-heading">
-            <h2 id="review-services-title">Servicios seleccionados</h2>
-            <span id="review-item-count" class="review-count">0</span>
+        <section class="review-summary neumorphic-panel" aria-labelledby="review-summary-title">
+          <div class="panel-heading-inline">
+            <h2 id="review-summary-title">Servicios seleccionados</h2>
+            <span id="review-item-count" class="soft-pill">0</span>
           </div>
           <div id="review-items" class="review-items"></div>
-          <div class="review-total">
+          <div class="review-total-line">
             <span>Estimación total</span>
             <strong id="review-total">USD 0</strong>
           </div>
         </section>
 
-        <section class="review-panel" aria-labelledby="client-form-title">
-          <div class="review-panel-heading">
+        <section class="client-panel neumorphic-panel" aria-labelledby="client-form-title">
+          <div class="panel-heading-inline">
             <h2 id="client-form-title">Tus datos</h2>
-            <span id="autosave-indicator" class="autosave-indicator">Guardado automático</span>
+            <span class="autosave-indicator" id="autosave-indicator">Guardado automático</span>
           </div>
 
-          <form id="client-form" class="client-form" novalidate>
-            <div class="field-group field-full">
-              <label for="client-name">Nombre y apellido *</label>
-              <input id="client-name" name="nombre" type="text" autocomplete="name" required />
-              <p id="error-client-name" class="field-error"></p>
-            </div>
+          <form id="client-form" novalidate>
+            <div class="form-grid">
+              <div class="field-group field-group-full">
+                <label for="client-name">Nombre y apellido *</label>
+                <input id="client-name" name="nombre" type="text" autocomplete="name" />
+                <p class="field-error" id="error-client-name"></p>
+              </div>
 
-            <div class="field-group">
-              <label for="client-company">Empresa o marca</label>
-              <input id="client-company" name="empresa" type="text" autocomplete="organization" />
-            </div>
+              <div class="field-group">
+                <label for="client-company">Empresa o marca</label>
+                <input id="client-company" name="empresa" type="text" autocomplete="organization" />
+                <p class="field-error" id="error-client-company"></p>
+              </div>
 
-            <div class="field-group">
-              <label for="client-email">Email *</label>
-              <input id="client-email" name="email" type="email" autocomplete="email" required />
-              <p id="error-client-email" class="field-error"></p>
-            </div>
+              <div class="field-group">
+                <label for="client-email">Email *</label>
+                <input id="client-email" name="email" type="email" autocomplete="email" />
+                <p class="field-error" id="error-client-email"></p>
+              </div>
 
-            <div class="field-group field-full">
-              <label for="client-timeline">Momento estimado</label>
-              <select id="client-timeline" name="plazo">
-                <option value="Sin fecha definida">Sin fecha definida</option>
-                <option value="Lo antes posible">Lo antes posible</option>
-                <option value="1–2 meses">En 1 a 2 meses</option>
-                <option value="3–6 meses">En 3 a 6 meses</option>
-                <option value="Más de 6 meses">Más adelante</option>
-              </select>
-            </div>
+              <div class="field-group field-group-full">
+                <label id="client-timeline-label">Momento estimado</label>
+                <div id="timeline-select" class="custom-select">
+                  <input id="client-timeline" name="plazo" type="hidden" value="Sin fecha definida" />
+                  <button
+                    id="timeline-select-trigger"
+                    class="custom-select-trigger"
+                    type="button"
+                    aria-haspopup="listbox"
+                    aria-expanded="false"
+                    aria-labelledby="client-timeline-label timeline-select-value"
+                  >
+                    <span id="timeline-select-value">Sin fecha definida</span>
+                    <span class="select-icon" aria-hidden="true">
+                      <svg viewBox="0 0 24 24"><path d="m7 9 5 5 5-5" /></svg>
+                    </span>
+                  </button>
+                  <div id="timeline-select-menu" class="custom-select-menu glass-shell custom-scroll" role="listbox" aria-labelledby="client-timeline-label" hidden>
+                    <span class="glass-optics" aria-hidden="true"></span>
+                    <span class="glass-tint" aria-hidden="true"></span>
+                    <div class="glass-content custom-select-options">
+                      <button class="custom-select-option is-selected" type="button" role="option" aria-selected="true" data-value="Sin fecha definida">Sin fecha definida</button>
+                      <button class="custom-select-option" type="button" role="option" aria-selected="false" data-value="Lo antes posible">Lo antes posible</button>
+                      <button class="custom-select-option" type="button" role="option" aria-selected="false" data-value="1–2 meses">En 1 a 2 meses</button>
+                      <button class="custom-select-option" type="button" role="option" aria-selected="false" data-value="3–6 meses">En 3 a 6 meses</button>
+                      <button class="custom-select-option" type="button" role="option" aria-selected="false" data-value="Más de 6 meses">Más adelante</button>
+                    </div>
+                  </div>
+                </div>
+                <p class="field-error" id="error-client-timeline"></p>
+              </div>
 
-            <div class="field-group field-full">
-              <label for="client-objective">Objetivo del proyecto</label>
-              <textarea id="client-objective" name="objetivo" maxlength="500" rows="5" placeholder="Contanos brevemente qué querés resolver, lanzar o mejorar."></textarea>
-              <div class="field-helper">
-                <span>Opcional</span>
-                <span id="objective-count">0 / 500</span>
+              <div class="field-group field-group-full">
+                <label for="client-objective">Objetivo del proyecto</label>
+                <textarea id="client-objective" name="objetivo" rows="5" maxlength="500" placeholder="Contanos brevemente qué querés resolver, lanzar o mejorar."></textarea>
+                <div class="field-helper-row">
+                  <span>Opcional</span>
+                  <span id="objective-count">0 / 500</span>
+                </div>
+                <p class="field-error" id="error-client-objective"></p>
               </div>
             </div>
 
-            <div class="field-full">
-              <button id="btn-confirm-quote" class="confirm-quote-button" type="submit">Confirmar cotización</button>
+            <div class="review-actions">
+              <button id="btn-confirm-quote" class="material-button full-button" type="submit">
+                <span class="material-button-label">Confirmar cotización</span>
+                <span class="material-button-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7" /></svg>
+                </span>
+              </button>
             </div>
           </form>
         </section>
       </div>
     </section>
 
-    <section id="success-view" class="success-view" hidden aria-labelledby="success-title">
-      <div class="success-heading">
-        <span class="success-check" aria-hidden="true">✓</span>
-        <h1 id="success-title">Cotización generada</h1>
-        <p>La cotización quedó guardada. Podés conservar el resumen o continuar la conversación con el equipo.</p>
-      </div>
+    <section id="success-view" class="view success-view" hidden aria-labelledby="success-title">
+      <div class="success-shell">
+        <div class="success-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M5 12.5 9.2 17 19 7" /></svg>
+        </div>
 
-      <section class="final-quote-card" aria-label="Resumen de cotización">
-        <div class="final-quote-top">
-          <div>
-            <span>Cotización</span>
-            <strong id="final-quote-id">—</strong>
+        <div class="success-copy">
+          <h1 id="success-title">Cotización generada</h1>
+          <p>Tu solicitud quedó cerrada correctamente. Podés conservar el resumen o continuar la conversación con nuestro equipo.</p>
+        </div>
+
+        <div class="final-quote-card glass-shell">
+          <span class="glass-optics" aria-hidden="true"></span>
+          <span class="glass-tint" aria-hidden="true"></span>
+          <div class="glass-content final-quote-content">
+            <div class="final-quote-top">
+              <div>
+                <span class="final-label">Cotización</span>
+                <strong id="final-quote-id">—</strong>
+              </div>
+              <span id="final-quote-date" class="final-date">—</span>
+            </div>
+            <div id="final-client-summary" class="final-client-summary"></div>
+            <div id="final-services" class="final-services"></div>
+            <div class="final-total-row">
+              <span>Estimación total</span>
+              <strong id="final-total">USD 0</strong>
+            </div>
           </div>
-          <span id="final-quote-date">—</span>
         </div>
 
-        <div id="final-client-summary" class="final-client-summary"></div>
-        <div id="final-services" class="final-services"></div>
-
-        <div class="final-total">
-          <span>Estimación total</span>
-          <strong id="final-total">USD 0</strong>
+        <div class="success-actions">
+          <button id="btn-whatsapp" class="material-button full-button" type="button">
+            <span class="material-button-label">Continuar por WhatsApp</span>
+            <span class="material-button-icon" aria-hidden="true">↗</span>
+          </button>
+          <button id="btn-copy-summary" class="material-button" type="button">
+            <span class="material-button-label">Copiar resumen</span>
+          </button>
+          <button id="btn-new-quote" class="button-text" type="button">Nueva cotización</button>
         </div>
-      </section>
 
-      <div class="success-actions">
-        <button id="btn-whatsapp" class="primary-action" type="button">Continuar por WhatsApp</button>
-        <button id="btn-copy-summary" class="secondary-action" type="button">Copiar resumen</button>
-        <button id="btn-new-quote" class="text-action" type="button">Nueva cotización</button>
+        <p class="whatsapp-helper">La cotización ya fue generada. WhatsApp es un canal adicional para hablar directamente con nuestro equipo sobre próximos pasos.</p>
       </div>
     </section>
   </main>
 
-  <button id="quote-fab" class="quote-fab" type="button" aria-controls="quote-drawer" aria-expanded="false" hidden>
-    <span>
-      <small id="fab-count">0 servicios</small>
-      <strong id="fab-total">USD 0</strong>
+  <button id="quote-fab" class="quote-fab glass-shell" type="button" aria-controls="quote-drawer" aria-expanded="false" hidden>
+    <span class="glass-optics" aria-hidden="true"></span>
+    <span class="glass-tint" aria-hidden="true"></span>
+    <span class="glass-content quote-fab-content">
+      <span class="quote-fab-summary">
+        <small id="fab-count">0 servicios</small>
+        <strong id="fab-total">USD 0</strong>
+      </span>
+      <span class="material-button glass-material-button" aria-hidden="true">
+        <span class="material-button-label">Ver cotización</span>
+        <span class="material-button-icon">
+          <svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7" /></svg>
+        </span>
+      </span>
     </span>
-    <span class="quote-fab-action">Ver cotización</span>
   </button>
 
-  <div id="modal-overlay" class="modal-overlay" hidden></div>
+  <div id="overlay" class="overlay" hidden></div>
 
-  <section
-    id="service-modal"
-    class="service-modal"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="service-modal-title"
-    aria-hidden="true"
-    hidden
-  >
-    <header class="service-modal-header">
-      <div>
-        <h2 id="service-modal-title">Servicios</h2>
-        <p id="service-modal-description"></p>
-      </div>
-      <button id="btn-close-service-modal" class="modal-close" type="button" aria-label="Cerrar servicios">×</button>
-    </header>
-
-    <div id="service-modal-list" class="service-list"></div>
+  <section id="service-modal" class="service-modal glass-shell floating-panel" role="dialog" aria-modal="true" aria-labelledby="service-modal-title" aria-hidden="true">
+    <span class="glass-optics" aria-hidden="true"></span>
+    <span class="glass-tint" aria-hidden="true"></span>
+    <div class="glass-content service-modal-content">
+      <header class="modal-header">
+        <div>
+          <h2 id="service-modal-title">Servicios</h2>
+          <p id="service-modal-description"></p>
+        </div>
+        <button id="btn-close-service-modal" class="round-control" type="button" aria-label="Cerrar servicios">
+          <span aria-hidden="true">×</span>
+        </button>
+      </header>
+      <div id="service-modal-list" class="service-list custom-scroll"></div>
+    </div>
   </section>
 
-  <aside
-    id="quote-drawer"
-    class="quote-drawer"
-    role="dialog"
-    aria-modal="true"
-    aria-labelledby="quote-drawer-title"
-    aria-hidden="true"
-    hidden
-  >
-    <header class="quote-drawer-header">
-      <div>
-        <h2 id="quote-drawer-title">Tu cotización</h2>
-        <p id="drawer-count">0 servicios seleccionados</p>
-      </div>
-      <button id="btn-close-drawer" class="modal-close" type="button" aria-label="Cerrar cotización">×</button>
-    </header>
+  <aside id="quote-drawer" class="quote-drawer glass-shell floating-panel" role="dialog" aria-modal="true" aria-labelledby="quote-drawer-title" aria-hidden="true">
+    <span class="glass-optics" aria-hidden="true"></span>
+    <span class="glass-tint" aria-hidden="true"></span>
+    <div class="glass-content quote-drawer-content">
+      <header class="drawer-header">
+        <div>
+          <h2 id="quote-drawer-title">Tu cotización</h2>
+          <p id="drawer-count">0 servicios seleccionados</p>
+        </div>
+        <button id="btn-close-drawer" class="round-control" type="button" aria-label="Cerrar cotización">
+          <span aria-hidden="true">×</span>
+        </button>
+      </header>
 
-    <div class="quote-drawer-body">
-      <div id="quote-empty" class="quote-empty">
-        <strong>Tu cotización está vacía</strong>
-        <p>Agregá servicios desde cualquiera de los rubros.</p>
+      <div class="drawer-body">
+        <div id="quote-empty" class="quote-empty">
+          <div class="empty-symbol" aria-hidden="true">+</div>
+          <h3>Tu cotización está vacía</h3>
+          <p>Elegí un rubro y agregá los servicios que quieras evaluar.</p>
+        </div>
+        <div id="quote-items" class="quote-items custom-scroll" hidden></div>
       </div>
-      <div id="quote-items" class="quote-items" hidden></div>
+
+      <footer id="quote-footer" class="drawer-footer" hidden>
+        <div class="drawer-total-row">
+          <span>Estimación total</span>
+          <strong id="drawer-total">USD 0</strong>
+        </div>
+        <div class="drawer-actions">
+          <button id="btn-review-quote" class="material-button full-button glass-material-button" type="button">
+            <span class="material-button-label">Revisar cotización</span>
+            <span class="material-button-icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24"><path d="m9 5 7 7-7 7" /></svg>
+            </span>
+          </button>
+          <button id="btn-clear-quote" class="button-text" type="button">Vaciar cotización</button>
+        </div>
+      </footer>
     </div>
-
-    <footer id="quote-footer" class="quote-drawer-footer" hidden>
-      <div class="quote-total">
-        <span>Estimación total</span>
-        <strong id="drawer-total">USD 0</strong>
-      </div>
-      <button id="btn-review-quote" class="review-quote-button" type="button">Revisar cotización</button>
-      <button id="btn-clear-quote" class="clear-quote-button" type="button">Vaciar cotización</button>
-    </footer>
   </aside>
 </body>
 </html>
