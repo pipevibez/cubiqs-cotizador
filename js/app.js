@@ -76,7 +76,7 @@ const elementos = {
 
 const Toast = Swal.mixin({
   toast: true,
-  position: "bottom-end",
+  position: "bottom-start",
   showConfirmButton: false,
   timer: 2300,
   timerProgressBar: true,
